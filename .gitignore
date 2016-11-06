@@ -1,0 +1,8 @@
+.DS_Store
+.ivy2
+.ant-targets-build.xml
+repository
+client.jar
+server.jar
+**/build
+**/lib

@@ -1,0 +1,6 @@
+<ivy-module version="1.0">
+    <info
+        organisation="edu.utdallas.cs5390.group3"
+        module="core"
+        status="integration"/>
+</ivy-module>

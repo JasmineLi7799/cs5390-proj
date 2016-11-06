@@ -1,0 +1,5 @@
+<ivysettings>
+	<modules>
+		<module organisation="edu.utdallas.cd5390.group3" name="*" resolver="local"/>
+	</modules>
+</ivysettings>
