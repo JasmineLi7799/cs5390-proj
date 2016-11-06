@@ -18,10 +18,10 @@ public final class Client {
     public ClientThread thread() { return _thread; }
 
     /*
-    public bool isRegistered() {}
-    public bool hasChatSession() {}
+    public boolean isRegistered() {}
+    public boolean hasChatSession() {}
     public ClientConnection register(InetAddress addres, String cryptKey) {}
-    public String Authenticate(String response) {}
+    public String authenticate(String response) {}
     public void startChat(int chatId, Client partner) {}
     */
 
