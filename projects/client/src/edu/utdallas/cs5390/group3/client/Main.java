@@ -1,52 +1,90 @@
 package edu.utdallas.cs5390.group3.client;
 
-import java.net.DatagramSocket;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
+import java.lang.Runtime;
 
-import java.net.SocketException;
-import java.net.UnknownHostException;
+import java.lang.RuntimeException;
 import java.io.IOException;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
 public final class Main {
-    // TODO: read this info from a config file, or command line arguments, or whatever
-    private static final int CLIENT_ID = 1;
-    private static final String PRIV_KEY = new String("foo");
-    private static final int SERVER_WELCOME_PORT = 9876;
+
+    private static BufferedReader _in;
+    private static Client _client;
+    private static WelcomeSocket _welcome;
 
     public static void main(String[] args) {
-        InetAddress SERVER_IP;
+        Main.registerShutdownHook();
+        _client = new Client();
+        Console.info("Chat client initialized.");
+        Console.info("Type 'log on' to begin, or 'quit' to exit (case-insensitive).");
+
+        _in = new BufferedReader(new InputStreamReader(System.in));
+        while (true) {
+            String input;
+            try {
+                input = _in.readLine();
+            } catch (IOException e) {
+                Console.error("Caught: " + e);
+                System.exit(-1);
+                // Superfluous, but needed to satisfy the compiler that
+                // we aren't using String without initialziaton;
+                return;
+            }
+            if (input.matches("(?i)^quit$")) {
+                return;
+            }
+            if (input.matches("(?i)^log on")) {
+                try {
+                    _in.close();
+                } catch (IOException e) {
+                    Console.error("While closing input stream: "
+                                  + "Caught: " + e);
+                    break;
+                }
+                break;
+            } else {
+                Console.error("Invalid command: " + input);
+            }
+        }
+
         try {
-            SERVER_IP = InetAddress.getByName("localhost");
-        } catch (UnknownHostException e) {
-            System.out.println("Caught UnknownHostException: " + e);
+            _welcome = new WelcomeSocket();
+        } catch (RuntimeException e) {
+            System.out.println("Caught excpetion: " + e);
             System.exit(-1);
-            // Superfluous, but needed to satisfy the compiler.
+            // Superfluous, but needed to satisfy the compiler that
+            // we aren't using WelcomeSocket without initialziaton;
             return;
         }
-        DatagramSocket _socket;
+
+        _welcome.send(_client.hello());
+        _welcome.close();
         try {
-            _socket = new DatagramSocket();
-        } catch (SocketException e) {
-            System.out.println("Caught SocketException: " + e);
-            System.exit(-1);
-            // Superfluous, but needed to satisfy the compiler.
-            return;
-        }
-        String hello = "HELLO " + CLIENT_ID;
-        byte[] data = new byte[hello.length()];
-        data = hello.getBytes();
-        DatagramPacket dgram = new DatagramPacket(
-            data,
-            data.length,
-            SERVER_IP,
-            SERVER_WELCOME_PORT
-        );
-        try {
-            _socket.send(dgram);
+            _in.close();
         } catch (IOException e) {
-            System.out.println("Caught IOException: " + e);
+            Console.error("While closing input stream: "
+                        + "Caught: " + e);
         }
-        _socket.close();
+    }
+
+    private static void registerShutdownHook() {
+        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+            @Override
+            public void run() {
+                if (_in != null) {
+                    try {
+                        _in.close();
+                    } catch (IOException e) {
+                        Console.error("While closing input stream: "
+                                  + "Caught: " + e);
+                    }
+                }
+                if (_welcome != null) {
+                    _welcome.close();
+                }
+            }
+        }));
     }
 }
