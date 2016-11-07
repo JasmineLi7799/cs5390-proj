@@ -21,7 +21,7 @@ public final class Main {
     }
 
     // TODO: roll System.in into Console object? Only a single thread
-    // reads froms System.in, so we don't need a locking semaphore as
+    // reads from System.in, so we don't need a locking semaphore as
     // with System.out...
     public static void main(String[] args) throws Exception {
         Runtime.getRuntime().addShutdownHook(shutdownHandler());
