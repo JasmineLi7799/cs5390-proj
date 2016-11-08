@@ -12,18 +12,29 @@ import java.net.DatagramPacket;
 
 public final class Main {
 
+    private static enum State {
+        START,
+        HELLO_SENT,
+        CHALLENGE_RECV,
+        RESPONSE_SENT,
+        AUTHENTICATED,
+        REGISTERED
+        // ...
+    }
+
     private static BufferedReader _in;
     private static Client _client;
     private static WelcomeSocket _welcome;
+    private static State _state = State.START;
 
     public static void main(String[] args) {
         Main.registerShutdownHook();
         _client = new Client();
         Console.info("Chat client initialized.");
-        Console.info("Type 'log on' to begin, or 'quit' to exit (case-insensitive).");
+        Console.info("Type 'log on' to begin, 'quit' or 'exit' to exit (case-insensitive).");
 
         _in = new BufferedReader(new InputStreamReader(System.in));
-        while (true) {
+        while (!Thread.interrupted()) {
             String input;
             try {
                 input = _in.readLine();
@@ -34,23 +45,30 @@ public final class Main {
                 // we aren't using String without initialziaton;
                 return;
             }
-            if (input.matches("(?i)^quit$")) {
+
+            // QUIT/EXIT command
+            if (input.matches("(?i)^(quit|exit)$")) {
                 return;
             }
-            if (input.matches("(?i)^log on")) {
-                try {
-                    _in.close();
-                } catch (IOException e) {
-                    Console.error("While closing input stream: "
-                                  + "Caught: " + e);
-                    break;
+
+            // LOG ON command
+            else if (input.matches("(?i)^log on")) {
+                if (_state != State.START) {
+                    Console.error("You are already logged on, or a login is in progress");
+                    continue;
                 }
-                break;
-            } else {
+                Main.login();
+            }
+
+            // Any other inputStreamReader.
+            else {
                 Console.error("Invalid command: " + input);
+                continue;
             }
         }
+    }
 
+    private static void login() {
         try {
             _welcome = new WelcomeSocket();
         } catch (RuntimeException e) {
@@ -63,6 +81,7 @@ public final class Main {
 
         // send HELLO
         _welcome.send(_client.hello());
+        _state = State.HELLO_SENT;
 
         // receive CHALLENGE
         DatagramPacket challenge = _welcome.receive();
@@ -71,9 +90,12 @@ public final class Main {
         }
         Console.debug("Got CHALLENGE from server.");
 
+        _state = State.CHALLENGE_RECV;
+
         // TODO: complete handshake
     }
 
+    // TODO: state-specific cleanup tasks?
     private static void registerShutdownHook() {
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override
