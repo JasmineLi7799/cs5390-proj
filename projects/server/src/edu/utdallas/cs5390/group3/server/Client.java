@@ -9,13 +9,11 @@ public final class Client {
 
     private int _id;
     private String _privateKey;
-    private ClientThread _thread;
     private ClientConnection _connection;
     private ChatSession _chat;
 
     public int id() { return _id; }
     public ClientConnection connection() { return _connection; }
-    public ClientThread thread() { return _thread; }
 
     /*
     public boolean isRegistered() {}

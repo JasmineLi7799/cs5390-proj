@@ -22,13 +22,14 @@ public final class WelcomeSocket {
                           + PORT_NO + ": " + e);
             return false;
         }
-        Console.info("Listening on UDP port " + PORT_NO);
+        Console.info("Listening for connections on UDP port "
+                     + PORT_NO + ".");
         return true;
     }
 
     public void close() {
         _socket.close();
-        Console.info("Closed UDP port " + PORT_NO);
+        Console.info("Closed UDP port " + PORT_NO + ".");
     }
 
     public DatagramPacket receive() {
@@ -37,7 +38,7 @@ public final class WelcomeSocket {
         try {
             _socket.receive(dgram);
         } catch (IOException e) {
-            Console.error("Welcome thread: caught IOExcpetion: " + e);
+            Console.error("Welcome port: caught IOExcpetion: " + e);
             return null;
         }
         return dgram;

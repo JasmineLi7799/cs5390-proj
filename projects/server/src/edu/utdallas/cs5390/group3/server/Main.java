@@ -18,11 +18,9 @@ public final class Main {
         Main.registerShutdownHook();
         Server server = Server.instance();
         server.spinWelcomeThread();
-        Console.info("Server welcome thread running.");
-        Console.info("Type 'quit' to terminate.");
+        Console.info("Type 'quit' or 'exit' to terminate (case-insensitive).");
         Scanner in = new Scanner(System.in);
-        boolean keepRunning = true;
-        while (keepRunning) {
+        while (!Thread.interrupted()) {
             if (!server.welcomeIsAlive()) {
                 Console.fatal("Welcome thread terminated unexpectedly.");
                 System.exit(-1);
@@ -33,10 +31,11 @@ public final class Main {
             }
             try {
                 String command = in.nextLine();
-                if (command.equals("quit")) {
-                    keepRunning = false;
+                if (command.matches("(?i:)^(quit|exit)$")) {
+                    break;
                 } else {
-                    Console.error("Unknown command: '" + command + "'");
+                    Console.error("Unknown command: '"
+                                  + command + "'");
                 }
             } catch (NoSuchElementException |
                      IllegalStateException e) {
@@ -44,22 +43,24 @@ public final class Main {
                 System.exit(-1);
             }
         }
-        // Note: this call is necessary. Java programs do not
-        // terminate until all non-daemon threads have
-        // exited. Reaching the end of main() merely kills the main
-        // thread (interactive console). We have to tell the various
-        // other threads to die in order to terminate the server
-        // process. Alternatively, System.exit() will accomplish the
-        // same thing thanks to the shutdown hook.
+        // Reap all other threads when the main (interactive console)
+        // thread exits. Otherwise the server keeps running, just
+        // without the main thread. Alternatively, we could call
+        // System.exit() since the shutdown hook also calls
+        // server.shutDown().
         server.shutDown();
     }
 
     private static void registerShutdownHook() {
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Server.instance().shutDown();
-            }
-        }));
+        Runtime.getRuntime().addShutdownHook(
+            new Thread(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        Server.instance().shutDown();
+                    }
+                }
+            )
+        );
     }
 }
