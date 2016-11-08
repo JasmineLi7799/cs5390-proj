@@ -3,6 +3,9 @@ package edu.utdallas.cs5390.group3.server;
 import java.lang.Thread;
 
 import java.net.DatagramPacket;
+import java.net.SocketAddress;
+import java.net.InetSocketAddress;
+import java.net.InetAddress;
 
 import java.io.IOException;
 import java.lang.InterruptedException;
@@ -12,11 +15,11 @@ import java.util.Scanner;
 import java.io.ByteArrayInputStream;
 
 public final class WelcomeThread extends Thread {
-    private WelcomeSocket _socket;
+    private WelcomeSocket _welcomeSock;
     private Server _server;
 
     public WelcomeThread() {
-        _socket = new WelcomeSocket();
+        _welcomeSock = new WelcomeSocket();
         _server = Server.instance();
     }
 
@@ -29,22 +32,22 @@ public final class WelcomeThread extends Thread {
     @Override
     public void interrupt() {
         super.interrupt();
-        _socket.close();
+        _welcomeSock.close();
     }
 
     @Override
     public void run() {
 
-        if (!_socket.open()) {
+        if (!_welcomeSock.open()) {
             return;
         }
 
         // Keep pulling datagrams out of the socket until something
         // interrupts the thread.
         while (!Thread.interrupted()
-               && !_socket.isClosed()) {
+               && !_welcomeSock.isClosed()) {
 
-            DatagramPacket dgram = _socket.receive();
+            DatagramPacket dgram = _welcomeSock.receive();
             if (dgram == null) {
                 // IOException occurred. Abort this iteration.
                 continue;
@@ -52,7 +55,8 @@ public final class WelcomeThread extends Thread {
 
             // Check if the UDP packet is associated with existing
             // client thread.
-            ClientThread cthread = _server.findThreadByPort(dgram.getPort());
+            ClientThread cthread =
+                _server.findThreadBySocket(dgram.getSocketAddress());
             if (cthread != null) {
                 // If so, add it to the client thread's work queue...
                 try {
@@ -80,8 +84,7 @@ public final class WelcomeThread extends Thread {
                 // etc. etc.
                 this.processHello(
                     scan,
-                    dgram.getAddress().getHostAddress(),
-                    dgram.getPort()
+                    dgram.getSocketAddress()
                 );
                 // And go back to listening for more datagrams.
                 continue;
@@ -92,21 +95,28 @@ public final class WelcomeThread extends Thread {
             // so just drop the packet.
             Console.warn("Welcome thread: "
                             + "Received malformed packet from: "
-                            + dgram.getAddress());
+                            + dgram.getAddress().getHostAddress());
             // And go back to listening for more datagrams.
             continue;
         }
 
         // Close up shop cleanly.
-        if (!_socket.isClosed()) {
-            _socket.close();
+        if (!_welcomeSock.isClosed()) {
+            _welcomeSock.close();
         }
     }
 
-    private void processHello(Scanner scan, String src, int port) {
-        int clientId;
+    private void processHello(Scanner scan, SocketAddress sockAddr) {
+        // Note: SocketAddress is an abstract type. This cast to
+        // the concrete type InetSocketAddress is only safe because
+        // in this case we happen to know that this really is the
+        // underlying type.
+        InetSocketAddress inetSockAddr = (InetSocketAddress)sockAddr;
+        InetAddress addr = inetSockAddr.getAddress();
+        String src = addr.getHostAddress();
 
         // Validate the format of the clientId...
+        int clientId;
         if (scan.hasNextInt()) {
             clientId = scan.nextInt();
         } else {
@@ -136,10 +146,10 @@ public final class WelcomeThread extends Thread {
                         + src
                         + ")");
         // Create a listener thread for this client.
-        ClientThread thread = new ClientThread(client, port, _socket);
+        ClientThread thread = new ClientThread(client, sockAddr, _welcomeSock);
         // Associate the UDP src port with the listener thread so that
         // we can route related packets there in the future.
-        _server.mapThread(port, thread);
+        _server.mapThread(sockAddr, thread);
         thread.run();
     }
 }

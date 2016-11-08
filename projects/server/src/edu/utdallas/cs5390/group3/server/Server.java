@@ -5,6 +5,8 @@ import java.lang.Thread;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 
+import java.net.SocketAddress;
+
 import java.lang.NullPointerException;
 
 public final class Server {
@@ -13,11 +15,11 @@ public final class Server {
     private Thread _welcomeThread;
     private boolean _haveShutdown;
     private ConcurrentHashMap<Integer, Client> _clientDB;
-    private ConcurrentHashMap<Integer, ClientThread> _threadPortMap;
+    private ConcurrentHashMap<SocketAddress, ClientThread> _threadMap;
 
     private Server() {
         _haveShutdown = false;
-        _threadPortMap = new ConcurrentHashMap<Integer, ClientThread>();
+        _threadMap = new ConcurrentHashMap<SocketAddress, ClientThread>();
         _clientDB = new ConcurrentHashMap<Integer, Client>();
         this.initDB();
     }
@@ -51,7 +53,7 @@ public final class Server {
         // interrupts all of its children. I.e., all of the client
         // listener threads. Hence, we don't need to interrupt them;
         // just join.
-        Iterator<ClientThread> it = _threadPortMap.values().iterator();
+        Iterator<ClientThread> it = _threadMap.values().iterator();
         while (it.hasNext()) {
             ClientThread thread = it.next();
             try {
@@ -102,21 +104,21 @@ public final class Server {
         return client;
     }
 
-    public ClientThread findThreadByPort(int port) {
+    public ClientThread findThreadBySocket(SocketAddress sockAddr) {
         ClientThread thread;
         try {
-            thread = _threadPortMap.get(port);
+            thread = _threadMap.get(sockAddr);
         } catch (NullPointerException e) {
             return null;
         }
         return thread;
     }
 
-    public void mapThread(int port, ClientThread thread) {
-        _threadPortMap.put(port, thread);
+    public void mapThread(SocketAddress sockAddr, ClientThread thread) {
+        _threadMap.put(sockAddr, thread);
     }
 
-    public ClientThread unMapThread(int port) {
-        return _threadPortMap.remove(port);
+    public ClientThread unMapThread(SocketAddress sockAddr) {
+        return _threadMap.remove(sockAddr);
     }
 }

@@ -2,6 +2,7 @@ package edu.utdallas.cs5390.group3.server;
 
 import java.net.DatagramSocket;
 import java.net.DatagramPacket;
+import java.net.InetAddress;
 
 import java.net.SocketException;
 import java.io.IOException;
@@ -42,6 +43,12 @@ public final class WelcomeSocket {
             return null;
         }
         return dgram;
+    }
+
+    public void send(byte[] data, InetAddress addr, int port) throws IOException {
+        DatagramPacket dgram
+            = new DatagramPacket(data, data.length, addr, port);
+        _socket.send(dgram);
     }
 
     public boolean isClosed() {
