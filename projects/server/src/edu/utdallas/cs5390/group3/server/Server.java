@@ -3,6 +3,8 @@ package edu.utdallas.cs5390.group3.server;
 import java.lang.Thread;
 import java.util.concurrent.ConcurrentHashMap;
 
+import java.lang.NullPointerException;
+
 public final class Server {
 
     private static Server _instance;
@@ -40,6 +42,7 @@ public final class Server {
 
     private Server() {
         _haveShutdown = false;
+        this.initDB();
     }
 
     public void spinWelcomeThread() {
@@ -53,6 +56,7 @@ public final class Server {
 
     // TODO: populate database from config file.
     private void initDB() {
+        _clientDB = new ConcurrentHashMap<Integer, Client>();
         Client c = new Client(1, "foo");
         _clientDB.put(c.id(), c);
         c = new Client(2, "bar");
@@ -60,6 +64,12 @@ public final class Server {
     }
 
     public Client findClientById(int id) {
-        return _clientDB.get(id);
+        Client client;
+        try {
+            client = _clientDB.get(id);
+        } catch (NullPointerException e) {
+            return null;
+        }
+        return client;
     }
 }
