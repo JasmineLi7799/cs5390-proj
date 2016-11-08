@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
+import java.net.DatagramPacket;
+
 public final class Main {
 
     private static BufferedReader _in;
@@ -52,21 +54,24 @@ public final class Main {
         try {
             _welcome = new WelcomeSocket();
         } catch (RuntimeException e) {
-            System.out.println("Caught excpetion: " + e);
+            Console.fatal("Caught excpetion: " + e);
             System.exit(-1);
             // Superfluous, but needed to satisfy the compiler that
             // we aren't using WelcomeSocket without initialziaton;
             return;
         }
 
+        // send HELLO
         _welcome.send(_client.hello());
-        _welcome.close();
-        try {
-            _in.close();
-        } catch (IOException e) {
-            Console.error("While closing input stream: "
-                        + "Caught: " + e);
+
+        // receive CHALLENGE
+        DatagramPacket challenge = _welcome.receive();
+        if (challenge == null) {
+            System.exit(-1);
         }
+        Console.debug("Got CHALLENGE from server.");
+
+        // TODO: complete handshake
     }
 
     private static void registerShutdownHook() {

@@ -10,6 +10,8 @@ import java.net.UnknownHostException;
 import java.io.IOException;
 
 public final class WelcomeSocket {
+    private static final int RECV_BUF_SIZE = 1024;
+
     private InetAddress _serverIP;
     private int _serverPort;
     private DatagramSocket _socket;
@@ -55,5 +57,17 @@ public final class WelcomeSocket {
             return false;
         }
         return true;
+    }
+
+    public DatagramPacket receive() {
+        byte[] buf = new byte[RECV_BUF_SIZE];
+        DatagramPacket dgram = new DatagramPacket(buf, RECV_BUF_SIZE);
+        try {
+            _socket.receive(dgram);
+        } catch (IOException e) {
+            Console.error("Welcome port: caught IOExcpetion: " + e);
+            return null;
+        }
+        return dgram;
     }
 }
