@@ -101,12 +101,19 @@
           target: jar
          ================================= -->
     <target name="jar" depends="version, compile" description="--> make a jar file for this project">
+      <manifestclasspath property="jar.classpath" jarfile="${jar.file}">
+        <classpath>
+            <fileset dir="${lib.dir}" includes="*.jar"/>
+        </classpath>
+      </manifestclasspath>
+
       <jar destfile="${jar.file}"
            manifest="${basedir}/MANIFEST">
             <fileset dir="${classes.dir}" />
             <manifest>
                 <attribute name="Built-By" value="${user.name}"/>
                 <attribute name="Build-Version" value="${version}" />
+                <attribute name="Class-Path" value="${jar.classpath}" />
             </manifest>
         </jar>
     </target>
