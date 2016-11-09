@@ -45,18 +45,21 @@ public final class Server {
         Console.debug("Reaping threads...");
         _threadGroup.interrupt();
         Thread[] threads = getGroupThreads(_threadGroup);
-        for (Thread thread : threads) {
-            try {
-                Console.debug("Waiting for thread '"
-                              + thread.getName() + "' to terminate...");
-                thread.join();
-                Console.debug("Thread '"
-                              + thread.getName() + "' terminated.");
-            } catch (InterruptedException e) {
-                Console.fatal("Shutdown thread interrupted. "
-                              +"Server may not have exited cleanly.");
-                break;
+        if (threads != null) {
+            for (Thread thread : threads) {
+                try {
+                    Console.debug("Waiting for thread '"
+                                + thread.getName() + "' to terminate...");
+                    thread.join();
+                    Console.debug("Thread '"
+                                + thread.getName() + "' terminated.");
+                } catch (InterruptedException e) {
+                    Console.fatal("Shutdown thread interrupted. "
+                                +"Server may not have exited cleanly.");
+                    break;
+                }
             }
+            Console.debug("All threads killed.");
         }
 
         Console.info("Server terminated.");
@@ -112,6 +115,7 @@ public final class Server {
         if (group == null)
             throw new NullPointerException("Null thread group");
         int nAlloc = group.activeCount();
+        if (nAlloc == 0) return null;
         int n = 0;
         Thread[] threads;
         do {
