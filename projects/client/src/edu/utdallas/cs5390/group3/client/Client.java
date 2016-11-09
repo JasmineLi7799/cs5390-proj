@@ -39,11 +39,11 @@ public final class Client {
         _stateLock.release();
     }
 
-    public Client(int i) {
+    public Client(int id, String privateKey) {
         // TODO: read this info from a config file, or command line
         // arguments, or whatever
-        _id = i;
-        _privateKey = "foo";
+        _id = id;
+        _privateKey = privateKey;
         _stateLock = new Semaphore(1);
         _state = State.START;
     }

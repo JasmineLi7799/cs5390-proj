@@ -49,17 +49,14 @@ public final class Server {
         }
         Console.debug("Welcome thread terminated.");
 
-        // Note: interrupting the welcome thread also implictly
-        // interrupts all of its children. I.e., all of the client
-        // listener threads. Hence, we don't need to interrupt them;
-        // just join.
         Iterator<ClientThread> it = _threadMap.values().iterator();
         while (it.hasNext()) {
             ClientThread thread = it.next();
             try {
-                Console.debug("Waiting for listener thread for client "
-                              + thread.client().id()
-                              + " to terminate...");
+                // Console.debug("Waiting for listener thread for client "
+                //               + thread.client().id()
+                //               + " to terminate...");
+                thread.interrupt();
                 thread.join();
             } catch (InterruptedException e) {
                 // Virtually, but not entirely impossible.
@@ -68,9 +65,9 @@ public final class Server {
                 Console.fatal("Server may not have shutdown cleanly.");
                 break;
             }
-            Console.debug("Listener thread for client "
-                            + thread.client().id()
-                            + " terminated.");
+            // Console.debug("Listener thread for client "
+            //                 + thread.client().id()
+            //                 + " terminated.");
         }
 
         Console.info("Server terminated.");

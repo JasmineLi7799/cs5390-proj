@@ -53,11 +53,12 @@ public final class ClientThread extends Thread {
 
         // Wait for a good HELLO packet.
         while (!Thread.interrupted()) {
-            if (this.getHello()) break;
-        }
-        if (Thread.interrupted()) {
-            this.exitCleanup();
-            return;
+            try {
+                if (this.getHello()) break;
+            } catch (InterruptedException e) {
+                this.exitCleanup();
+                return;
+            }
         }
 
         // Try to send CHALLENGE
@@ -76,13 +77,8 @@ public final class ClientThread extends Thread {
         this.exitCleanup();
     }
 
-    private boolean getHello() {
-        DatagramPacket dgram;
-        try {
-            dgram = this.udpTake();
-        } catch (InterruptedException e) {
-            return false;
-        }
+    private boolean getHello() throws InterruptedException {
+        DatagramPacket dgram = this.udpTake();
 
         // Set up a scanner to parse the datagram.
         Scanner scan = new Scanner(new ByteArrayInputStream(
