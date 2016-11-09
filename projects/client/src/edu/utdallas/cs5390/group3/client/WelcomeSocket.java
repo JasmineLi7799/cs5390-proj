@@ -28,6 +28,7 @@ public final class WelcomeSocket {
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
+        Console.debug("Opened welcome socket (" + _socket.getLocalPort() + ").");
         _serverPort = 9876;
     }
 
@@ -36,6 +37,8 @@ public final class WelcomeSocket {
     }
 
     public void close() {
+        Console.debug("Welcome socket (" + _socket.getLocalPort() + ")"
+                      + " closed.");
         if (!_socket.isClosed()) {
             _socket.close();
         }
@@ -65,7 +68,7 @@ public final class WelcomeSocket {
         try {
             _socket.receive(dgram);
         } catch (IOException e) {
-            Console.error("Welcome port: caught IOExcpetion: " + e);
+            Console.error("Welcome socket: caught IOExcpetion: " + e);
             return null;
         }
         return dgram;
