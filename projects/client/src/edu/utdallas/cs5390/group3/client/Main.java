@@ -29,7 +29,7 @@ public final class Main {
 
     public static void main(String[] args) {
         Main.registerShutdownHook();
-        _client = new Client();
+        _client = new Client(Integer.parseInt(args[0]));
         Console.info("Chat client initialized.");
         Console.info("Type 'log on' to begin, 'quit' or 'exit' to exit (case-insensitive).");
 

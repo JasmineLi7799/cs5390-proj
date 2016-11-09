@@ -9,10 +9,10 @@ public final class Client {
     public int id() { return _id; }
     public String privateKey() { return _privateKey; }
 
-    public Client() {
+    public Client(int i) {
         // TODO: read this info from a config file, or command line
         // arguments, or whatever
-        _id = 1;
+        _id = i;
         _privateKey = "foo";
     }
 
