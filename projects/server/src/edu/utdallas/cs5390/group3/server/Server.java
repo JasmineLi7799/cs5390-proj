@@ -38,37 +38,8 @@ public final class Server {
            output. */
         if (_haveShutdown) return;
 
-        Console.debug("Sending shutdown signal to welcome thread...");
-        _welcomeThread.interrupt();
-        Console.debug("Waiting for welcome thread to terminate...");
-        try {
-            _welcomeThread.join();
-        } catch (InterruptedException e) {
-            Console.fatal("Shutdown handler interrupted while trying to shutdown.");
-            Console.fatal("Server may not have shutdown cleanly.");
-        }
-        Console.debug("Welcome thread terminated.");
-
-        Iterator<ClientThread> it = _threadMap.values().iterator();
-        while (it.hasNext()) {
-            ClientThread thread = it.next();
-            try {
-                // Console.debug("Waiting for listener thread for client "
-                //               + thread.client().id()
-                //               + " to terminate...");
-                thread.interrupt();
-                thread.join();
-            } catch (InterruptedException e) {
-                // Virtually, but not entirely impossible.
-                Console.fatal("Shutdown handler interrupted while "
-                              + "trying to shutdown.");
-                Console.fatal("Server may not have shutdown cleanly.");
-                break;
-            }
-            // Console.debug("Listener thread for client "
-            //                 + thread.client().id()
-            //                 + " terminated.");
-        }
+        Console.debug("Reaping threads...");
+        Thread.currentThread().getThreadGroup().interrupt();
 
         Console.info("Server terminated.");
         _haveShutdown = true;
