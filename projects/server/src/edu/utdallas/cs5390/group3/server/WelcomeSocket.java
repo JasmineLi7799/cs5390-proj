@@ -3,6 +3,7 @@ package edu.utdallas.cs5390.group3.server;
 import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 
 import java.net.SocketException;
 import java.io.IOException;
@@ -10,27 +11,35 @@ import java.io.IOException;
 public final class WelcomeSocket {
     private final static int RECV_BUF_SIZE = 1024;
     private final static int SEND_BUF_SIZE = 1024;
-    // TODO: read this from a config file or something.
-    private final static int PORT_NO = 9876;
 
     private DatagramSocket _socket;
 
     public boolean open() {
+        Config cfg = Config.instance();
+        InetSocketAddress sockAddr = cfg.serverSockAddr();
+        InetAddress addr = sockAddr.getAddress();
+        int port = sockAddr.getPort();
+
         try {
-            _socket = new DatagramSocket(PORT_NO);
+            _socket = new DatagramSocket(port, addr);
         } catch (SocketException e) {
             Console.fatal("Exception while opening welcome port "
-                          + PORT_NO + ": " + e);
+                          + addr.getHostAddress() + ":" + port
+                          + ": " + e);
             return false;
         }
-        Console.info("Listening for connections on UDP port "
-                     + PORT_NO + ".");
+        Console.info("Listening for connections via UDP on "
+                     + addr.getHostAddress() + ":" + port + ".");
         return true;
     }
 
     public void close() {
-        _socket.close();
-        Console.info("Closed UDP port " + PORT_NO + ".");
+        if (!_socket.isClosed()) {
+            String addr = _socket.getLocalAddress().getHostAddress();
+            int port = _socket.getLocalPort();
+            Console.info("Closed UDP port " + addr + ":" + port + ".");
+            _socket.close();
+        }
     }
 
     public DatagramPacket receive() {

@@ -16,8 +16,9 @@ public final class WelcomeThread extends Thread {
     private Server _server;
 
     public WelcomeThread() {
-        _welcomeSock = new WelcomeSocket();
+        super(Server.instance().threadGroup(), "welcome");
         _server = Server.instance();
+        _welcomeSock = new WelcomeSocket();
     }
 
     // For whatever reason, DatagramSocket.receive() does not throw

@@ -1,6 +1,7 @@
 package edu.utdallas.cs5390.group3.server;
 
 import java.lang.Thread;
+import java.lang.ThreadGroup;
 
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,14 +11,16 @@ import java.net.SocketAddress;
 import java.lang.NullPointerException;
 
 public final class Server {
-
     private static Server _instance;
+
     private Thread _welcomeThread;
+    private ThreadGroup _threadGroup;
     private boolean _haveShutdown;
     private ConcurrentHashMap<Integer, Client> _clientDB;
     private ConcurrentHashMap<SocketAddress, ClientThread> _threadMap;
 
     private Server() {
+        _threadGroup = new ThreadGroup("server");
         _haveShutdown = false;
         _threadMap = new ConcurrentHashMap<SocketAddress, ClientThread>();
         _clientDB = new ConcurrentHashMap<Integer, Client>();
@@ -31,15 +34,30 @@ public final class Server {
         return _instance;
     }
 
-    // TODO: reap client connection threads.
+    public ThreadGroup threadGroup() { return _threadGroup; }
+
     public void shutDown() {
-        /* If someone already manually invoked shutDown (normal exit), don't do it again.
-           Calling shutDown() multiple times is safe, but it results in redundant console
-           output. */
+        /* If someone already manually invoked shutDown (normal exit),
+           don't do it again.  Calling shutDown() multiple times is
+           safe, but it results in redundant console output. */
         if (_haveShutdown) return;
 
         Console.debug("Reaping threads...");
-        Thread.currentThread().getThreadGroup().interrupt();
+        _threadGroup.interrupt();
+        Thread[] threads = getGroupThreads(_threadGroup);
+        for (Thread thread : threads) {
+            try {
+                Console.debug("Waiting for thread '"
+                              + thread.getName() + "' to terminate...");
+                thread.join();
+                Console.debug("Thread '"
+                              + thread.getName() + "' terminated.");
+            } catch (InterruptedException e) {
+                Console.fatal("Shutdown thread interrupted. "
+                              +"Server may not have exited cleanly.");
+                break;
+            }
+        }
 
         Console.info("Server terminated.");
         _haveShutdown = true;
@@ -88,5 +106,19 @@ public final class Server {
 
     public ClientThread unMapThread(SocketAddress sockAddr) {
         return _threadMap.remove(sockAddr);
+    }
+
+    private Thread[] getGroupThreads(final ThreadGroup group) {
+        if (group == null)
+            throw new NullPointerException("Null thread group");
+        int nAlloc = group.activeCount();
+        int n = 0;
+        Thread[] threads;
+        do {
+            nAlloc *= 2;
+            threads = new Thread[nAlloc];
+            n = group.enumerate(threads);
+        } while (n == nAlloc);
+        return java.util.Arrays.copyOf(threads, n);
     }
 }

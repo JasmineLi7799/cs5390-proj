@@ -31,10 +31,15 @@ public final class ClientThread extends Thread {
     private WelcomeSocket _welcomeSock;
 
     public ClientThread(SocketAddress sockAddr, WelcomeSocket sock) {
-        _udpRcvBuffer = new LinkedBlockingQueue<DatagramPacket>();
-        _server = Server.instance();
+        super(Server.instance().threadGroup(),
+              "client listener "
+              + ((InetSocketAddress)sockAddr).getAddress().getHostAddress()
+              + ":"
+              + ((InetSocketAddress)sockAddr).getPort());
 
-        _clientSockAddr = sockAddr;
+        _server = Server.instance();
+        _udpRcvBuffer = new LinkedBlockingQueue<DatagramPacket>();
+
         // Note: this is only a safe cast because we are certain that
         // the underlying subtype for this SocketAddress (abstract
         // class) is, in fact, an InetSocketAddress (concrete
@@ -42,6 +47,8 @@ public final class ClientThread extends Thread {
         InetSocketAddress inetSockAddr = (InetSocketAddress)sockAddr;
         _clientAddr = inetSockAddr.getAddress();
         _clientPort = inetSockAddr.getPort();
+
+        _clientSockAddr = sockAddr;
         _welcomeSock = sock;
     }
 
