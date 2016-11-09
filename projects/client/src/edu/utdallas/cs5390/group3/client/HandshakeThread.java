@@ -3,8 +3,9 @@ package edu.utdallas.cs5390.group3.client;
 import java.lang.Thread;
 
 import java.net.DatagramPacket;
+import java.net.InetSocketAddress;
 
-import java.lang.RuntimeException;
+import java.net.SocketException;
 import java.lang.InterruptedException;
 
 public final class HandshakeThread extends Thread {
@@ -12,9 +13,13 @@ public final class HandshakeThread extends Thread {
 
     private Client _client;
 
-    public HandshakeThread(Client client) {
+    public HandshakeThread(Client client,
+        InetSocketAddress serverSockAddr)
+        throws SocketException {
+
         super();
         _client = client;
+        _welcome = new WelcomeSocket(serverSockAddr);
     }
 
     @Override
@@ -25,16 +30,6 @@ public final class HandshakeThread extends Thread {
 
     @Override
     public void run() {
-        try {
-            _welcome = new WelcomeSocket();
-        } catch (RuntimeException e) {
-            Console.fatal("Caught excpetion: " + e);
-            System.exit(-1);
-            // Superfluous, but needed to satisfy the compiler that
-            // we aren't using WelcomeSocket without initialziaton;
-            return;
-        }
-
         try {
             this.sendHello();
         } catch (InterruptedException e) {

@@ -3,10 +3,9 @@ package edu.utdallas.cs5390.group3.client;
 import java.net.DatagramSocket;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 
-import java.lang.RuntimeException;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.io.IOException;
 
 public final class WelcomeSocket {
@@ -17,19 +16,13 @@ public final class WelcomeSocket {
     private DatagramSocket _socket;
 
     // TODO: read server paramters from a config file, or whatever.
-    public WelcomeSocket() throws RuntimeException {
-        try {
-            _serverIP = InetAddress.getByName("localhost");
-        } catch (UnknownHostException e) {
-            throw new RuntimeException(e);
-        }
-        try {
-            _socket = new DatagramSocket();
-        } catch (SocketException e) {
-            throw new RuntimeException(e);
-        }
+    public WelcomeSocket(InetSocketAddress serverSockAddr)
+        throws SocketException {
+
+        _serverIP = serverSockAddr.getAddress();
+        _serverPort = serverSockAddr.getPort();
+        _socket = new DatagramSocket();
         Console.debug("Opened welcome socket (" + _socket.getLocalPort() + ").");
-        _serverPort = 9876;
     }
 
     public void finalize() {
