@@ -10,7 +10,7 @@ import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.io.IOException;
 
-public final class WelcomeSocket {
+public final class HandshakeSocket {
     private static final int RECV_BUF_SIZE = 1024;
 
     private InetAddress _serverIP;
@@ -18,7 +18,7 @@ public final class WelcomeSocket {
     private DatagramSocket _socket;
 
     // TODO: read server paramters from a config file, or whatever.
-    public WelcomeSocket(InetSocketAddress serverSockAddr)
+    public HandshakeSocket(InetSocketAddress serverSockAddr)
         throws SocketException {
 
         _serverIP = serverSockAddr.getAddress();

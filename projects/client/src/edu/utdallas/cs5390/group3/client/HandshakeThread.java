@@ -11,7 +11,7 @@ import java.net.SocketException;
 import java.lang.InterruptedException;
 
 public final class HandshakeThread extends Thread {
-    private static WelcomeSocket _welcome;
+    private static HandshakeSocket _handshakeSock;
 
     private Client _client;
 
@@ -21,13 +21,13 @@ public final class HandshakeThread extends Thread {
 
         super();
         _client = client;
-        _welcome = new WelcomeSocket(serverSockAddr);
+        _handshakeSock = new HandshakeSocket(serverSockAddr);
     }
 
     @Override
     public void interrupt() {
         super.interrupt();
-        _welcome.close();
+        _handshakeSock.close();
     }
 
     @Override
@@ -62,13 +62,13 @@ public final class HandshakeThread extends Thread {
     }
 
     private void sendHello() throws InterruptedException {
-        _welcome.send(_client.hello());
+        _handshakeSock.send(_client.hello());
         _client.setState(Client.State.HELLO_SENT);
     }
 
     private void getChallenge() throws InterruptedException {
         // TODO: parse and validate challenge datagram
-        DatagramPacket challenge = _welcome.receive();
+        DatagramPacket challenge = _handshakeSock.receive();
         if (challenge == null) {
             System.exit(-1);
         }
