@@ -16,9 +16,8 @@ public final class WelcomeSocket {
 
     public boolean open() {
         Config cfg = Config.instance();
-        InetSocketAddress sockAddr = cfg.serverSockAddr();
-        InetAddress addr = sockAddr.getAddress();
-        int port = sockAddr.getPort();
+        InetAddress addr = cfg.bindAddr();
+        int port = cfg.bindPort();
 
         try {
             _socket = new DatagramSocket(port, addr);

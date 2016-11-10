@@ -4,19 +4,29 @@ import java.util.Properties;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
+
 import java.io.IOException;
+import java.lang.IllegalStateException;
+import java.lang.NullPointerException;
+import java.net.UnknownHostException;
 
 public final class Config {
-    private static int DEFAULT_BIND_PORT = 9876;
+    // Defaults
+    private static final String DEFAULT_BIND_ADDR = "0.0.0.0";
+    private static final int DEFAULT_BIND_PORT = 9876;
 
     private static Config _instance;
-    private boolean _haveInit;
 
-    private InetSocketAddress _serverSockAddr;
+    // Bookkeeping
+    private boolean _haveInit;
+    private String _configFileName;
+
+    // Configuration properties
+    private InetAddress _bindAddr;
+    private int _bindPort;
 
     private Config() {
         _haveInit = false;
@@ -29,44 +39,60 @@ public final class Config {
         return _instance;
     }
 
-    public InetSocketAddress serverSockAddr() {
-        if (!_haveInit) {
-            Console.error("Attempted to access Config.serverSockAddr() "
-                + "before Config.init()");
-        }
-        return _serverSockAddr;
+    public InetAddress bindAddr() {
+        this.checkGetState();
+        return _bindAddr;
     }
 
-    public boolean init(String configFileName) {
+    public int bindPort() {
+        this.checkGetState();
+        return _bindPort;
+    }
+
+    private void checkGetState() {
+        if (!_haveInit) {
+            throw new IllegalStateException(
+                "Must call Config.init() before getting properties.");
+        }
+    }
+
+    public boolean init(final String configFileName) {
         if (_haveInit) {
-            Console.debug("Warning: duplicate initialization of "
-                + "Config.");
-            Thread.dumpStack();
+            throw new IllegalStateException(
+                "Duplicate call to Config.init().");
+        }
+        _configFileName = configFileName;
+
+        // Parse config file
+        Properties props = this.loadProperties();
+        if (props == null) {
+            Console.fatal("Could not load configuration file: '"
+                          + _configFileName + "'");
             return false;
         }
 
-        Properties props = this.loadConfig(configFileName);
-        if (props == null) {
-            Console.fatal("Could not load configuration file.");
+        // Validate properties
+        try {
+            _bindAddr = this.validateBindAddress(props);
+            _bindPort = this.validateBindPort(props);
+        } catch (NullPointerException e) {
+            // If any property failed to validate, init() fails.
             return false;
         }
-        _serverSockAddr = loadServerConfig(props, configFileName);
-        if (_serverSockAddr == null) {
-            return false;
-        }
+
         _haveInit = true;
         return true;
     }
 
-    private static Properties loadConfig(String configFileName) {
+    private Properties loadProperties() {
         InputStream configFile = null;
         Properties props = new Properties();
         try {
-            configFile = new FileInputStream(configFileName);
+            configFile = new FileInputStream(_configFileName);
             props.load(configFile);
         } catch (IOException e) {
             Console.fatal("IOException while parsing "
-                          + "'" + configFileName + "': " + e);
+                          + "'" + _configFileName + "': " + e);
             return null;
         }
         if (configFile != null) {
@@ -74,56 +100,71 @@ public final class Config {
                 configFile.close();
             } catch (IOException e) {
                 Console.warn("IOException while closing "
-                            + "'" + configFileName + "': " + e);
+                            + "'" + _configFileName + "': " + e);
             }
         }
         return props;
     }
 
-    private static InetSocketAddress loadServerConfig(
-        Properties props, String configFileName) {
+    private InetAddress validateBindAddress(final Properties props) throws NullPointerException {
+        String serverAddrProp = props.getProperty("bind_addr");
 
-        // validate 'bind_addr' format
-        String serverAddrString = props.getProperty("bind_addr");
+        // default value if ommitted.
+        if (serverAddrProp == null) {
+            serverAddrProp = Config.DEFAULT_BIND_ADDR;
+        // translate '*' to an equiavlent that InetAddress.getByName()
+        // understands.
+        } else if (serverAddrProp.equals("*")) {
+            serverAddrProp = "0.0.0.0";
+        }
+
+        // use InetAddress.getByName to validate the address.
+        //
+        // Note: this doesn't mean we can succesfully bind to the
+        // address, just that it is a valid address. If the address
+        // doesn't belong to this host, we'll catch that when we
+        // create the WelcomePort.
         InetAddress serverAddr;
-        if (serverAddrString == null) {
-            Console.fatal("Missing required 'bind_addr' property in "
-                          + "'" + configFileName + "'.");
-            return null;
-        }
-        if (serverAddrString.equals("*")) {
-            serverAddrString = "0.0.0.0";
-        }
         try {
-            serverAddr = InetAddress.getByName(serverAddrString);
+            serverAddr = InetAddress.getByName(serverAddrProp);
         } catch (UnknownHostException e) {
             Console.fatal("Could not resolve 'bind_addr' property in "
-                          + "'" + configFileName + "' to a valid host: "
-                          + serverAddrString);
-            return null;
+                          + "'" + _configFileName + "' to a valid host: "
+                          + serverAddrProp);
+            throw new NullPointerException();
         }
 
-        // validate 'bind_port' format
-        String serverPortString = props.getProperty("bind_port");
-        int serverPort;
-        if (serverPortString == null) {
-            serverPort = Config.DEFAULT_BIND_PORT;
-        } else if (serverPortString.matches("^[0-9]+$")) {
-            serverPort = Integer.parseInt(serverPortString);
-            if (serverPort < 0 || serverPort > 65535) {
-                Console.fatal("Specified 'bind_port' property in "
-                              + "'" + configFileName + "' is out-of-range: '"
-                              + serverPort + "' (must be 0-65535)");
-                return null;
-            }
-        } else {
+        // Validation succeeded.
+        return serverAddr;
+    }
+
+    private int validateBindPort(final Properties props) throws NullPointerException {
+        String bindPortProp = props.getProperty("bind_port");
+
+        // Default value if ommitted.
+        if (bindPortProp == null) {
+            return Config.DEFAULT_BIND_PORT;
+        }
+
+        // Check format.
+        if (!bindPortProp.matches("^[0-9]+$")) {
             Console.fatal("Malformed 'bind_port' property in "
-                          + "'" + configFileName + "': '"
-                          + serverPortString + "' (must be 0-65535)");
-            return null;
+                          + "'" + _configFileName + "': '"
+                          + bindPortProp + "' (must be 0-65535)");
+            throw new NullPointerException();
         }
 
-        return new InetSocketAddress(serverAddr, serverPort);
+        // Check bounds.
+        int bindPort = Integer.parseInt(bindPortProp);
+        if (bindPort < 0 || bindPort > 65535) {
+            Console.fatal("Specified 'bind_port' property in "
+                            + "'" + _configFileName + "' is out-of-range: '"
+                            + bindPort + "' (must be 0-65535)");
+            throw new NullPointerException();
+        }
+
+        // Validation succeeded.
+        return bindPort;
     }
 
 }
