@@ -1,5 +1,6 @@
 package edu.utdallas.cs5390.group3.server;
 
+import edu.utdallas.cs5390.group3.core.Console;
 import edu.utdallas.cs5390.group3.core.Cryptor;
 
 import java.lang.InterruptedException;
@@ -139,7 +140,7 @@ public final class ClientThread extends Thread {
         ByteArrayOutputStream challengeStream
             = new ByteArrayOutputStream();
         try {
-            challengeStream.write("CHALLENGE\0".getBytes("UTF-8"));
+            challengeStream.write("CHALLENGE".getBytes("UTF-8"));
             challengeStream.write(rand);
         } catch (IOException e) {
             // This exception shouldn't actually be possible.

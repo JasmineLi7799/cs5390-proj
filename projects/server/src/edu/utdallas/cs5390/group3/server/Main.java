@@ -1,5 +1,7 @@
 package edu.utdallas.cs5390.group3.server;
 
+import edu.utdallas.cs5390.group3.core.Console;
+
 import java.lang.Runnable;
 import java.lang.Runtime;
 import java.lang.Thread;

@@ -1,4 +1,4 @@
-package edu.utdallas.cs5390.group3.server;
+package edu.utdallas.cs5390.group3.core;
 
 import java.util.concurrent.Semaphore;
 

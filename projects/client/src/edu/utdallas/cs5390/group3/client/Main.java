@@ -1,5 +1,7 @@
 package edu.utdallas.cs5390.group3.client;
 
+import edu.utdallas.cs5390.group3.core.Console;
+
 import java.lang.Runtime;
 import java.lang.ThreadGroup;
 
