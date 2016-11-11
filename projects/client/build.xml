@@ -7,9 +7,12 @@
     <copy file="${basedir}/${ant.project.name}.cfg" todir="${build.dir}" />
     <copy file="${scripts.dir}/${ant.project.name}.sh" todir="${wkspace.dir}" />
     <chmod file="${wkspace.dir}/${ant.project.name}.sh" perm="ugo+rx" />
+    <copy file="${scripts.dir}/${ant.project.name}.bat" todir="${wkspace.dir}" />
+    <chmod file="${wkspace.dir}/${ant.project.name}.bat" perm="ugo+rx" />
   </target>
 
   <target name="clean-build" depends="common.clean-build">
     <delete file="${wkspace.dir}/${ant.project.name}.sh" quiet="true" />
+    <delete file="${wkspace.dir}/${ant.project.name}.bat" quiet="true" />
   </target>
 </project>

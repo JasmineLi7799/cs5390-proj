@@ -6,5 +6,7 @@ client.jar
 server.jar
 client.sh
 server.sh
+client.bat
+server.bat
 **/build
 **/lib
