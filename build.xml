@@ -37,8 +37,6 @@
 
   <target name="clean" depends="buildlist" description="clean all projects">
     <subant target="clean" buildpathref="build-path" />
-    <symlink action="delete" link="server.jar" />
-    <symlink action="delete" link="client.jar" />
   </target>
 
   <target name="clean-harder" depends="clean, load-ivy"

@@ -3,16 +3,16 @@
 
 	<import file="${common.dir}/common.xml"/>
 
-  <!-- We make the 'jar' target dependent on the 'common.jar' target (from common.xml)
-       so that the usual jar building stuff happens first. On completion, we create
-       a symlink in the workspace dir (root project directory) to the build artifact
-       so that the TA doesn't have to go fishing for it. -->
-  <target name="jar" depends="common.jar">
-    <symlink
-        link="${wkspace.dir}/server.jar"
-        resource="${build.dir}/server.jar"
-        overwrite="true"
-    />
+  <target name="publish" depends="common.publish">
+    <copy file="${basedir}/${ant.project.name}.cfg" todir="${build.dir}" />
+    <copy file="${scripts.dir}/${ant.project.name}.sh" todir="${wkspace.dir}" />
+    <chmod file="${wkspace.dir}/${ant.project.name}.sh" perm="ugo+rx" />
+    <copy file="${scripts.dir}/${ant.project.name}.bat" todir="${wkspace.dir}" />
+    <chmod file="${wkspace.dir}/${ant.project.name}.bat" perm="ugo+rx" />
   </target>
 
+  <target name="clean-build" depends="common.clean-build">
+    <delete file="${wkspace.dir}/${ant.project.name}.sh" quiet="true" />
+    <delete file="${wkspace.dir}/${ant.project.name}.bat" quiet="true" />
+  </target>
 </project>
