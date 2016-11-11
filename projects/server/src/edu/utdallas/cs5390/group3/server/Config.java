@@ -19,6 +19,7 @@ public final class Config {
     // Defaults
     private static final String DEFAULT_BIND_ADDR = "0.0.0.0";
     private static final int DEFAULT_BIND_PORT = 9876;
+    private static final boolean DEFAULT_DEBUG_MODE = false;
 
     private static Config _instance;
 
@@ -29,6 +30,7 @@ public final class Config {
     // Configuration properties
     private InetAddress _bindAddr;
     private int _bindPort;
+    private boolean _debugMode;
 
     private Config() {
         _haveInit = false;
@@ -49,6 +51,11 @@ public final class Config {
     public int bindPort() {
         this.checkGetState();
         return _bindPort;
+    }
+
+    public boolean debugMode() {
+        this.checkGetState();
+        return _debugMode;
     }
 
     private void checkGetState() {
@@ -77,11 +84,14 @@ public final class Config {
         try {
             _bindAddr = this.validateBindAddress(props);
             _bindPort = this.validateBindPort(props);
+            _debugMode = this.validateDebug(props);
         } catch (NullPointerException e) {
             // If any property failed to validate, init() fails.
             return false;
         }
 
+        if(_debugMode)
+            Console.enterDebugMode();
         _haveInit = true;
         return true;
     }
@@ -167,6 +177,26 @@ public final class Config {
 
         // Validation succeeded.
         return bindPort;
+    }
+
+    private boolean validateDebug(final Properties props) throws NullPointerException {
+        String debugProp = props.getProperty("debug");
+
+        // Default value if ommitted.
+        if (debugProp == null) {
+            return DEFAULT_DEBUG_MODE;
+        }
+
+        if (debugProp.equalsIgnoreCase("true"))
+            return true;
+        else if (debugProp.equalsIgnoreCase("false"))
+            return false;
+        else {
+            Console.fatal("Specified 'debug' property in "
+                            + "'" + _configFileName + "' is invalid: '"
+                            + " Must be 'true' or 'false'");
+            throw new NullPointerException();
+        }
     }
 
 }
