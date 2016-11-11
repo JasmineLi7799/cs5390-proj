@@ -2,11 +2,11 @@
 .ivy2
 .ant-targets-build.xml
 repository
-client.jar
-server.jar
-client.sh
-server.sh
-client.bat
-server.bat
+/client.jar
+/server.jar
+/client.sh
+/server.sh
+/client.bat
+/server.bat
 **/build
 **/lib
