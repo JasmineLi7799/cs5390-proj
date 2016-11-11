@@ -3,6 +3,7 @@ package edu.utdallas.cs5390.group3.core;
 import java.util.concurrent.Semaphore;
 
 public final class Console {
+    private static boolean debugMode = false;
     private static Semaphore _writeLock;
 
     static {
@@ -28,7 +29,8 @@ public final class Console {
     // Debug output.
     // TODO: debug mode toggle to globally squelch debug output.
     public static void debug(String message) {
-        write("[DEBUG]", message);
+        if(debugMode)
+            write("[DEBUG]", message);
     }
 
     // For things that are not quit an error, but may indicate weird behavior.
@@ -44,5 +46,10 @@ public final class Console {
     // Non-recoverable errors
     public static void fatal(String message) {
         write("[FATAL]", message);
+    }
+    
+    public static void enterDebugMode(){
+        debugMode = true;
+        debug("Entering Debug Mode");
     }
 }

@@ -35,6 +35,9 @@ public final class Main {
             return;
         }
 
+        if(args.length>1 && (args[1].equals("--debug") || args[1].equals("-D")))
+            Console.enterDebugMode();
+
         Console.info("Chat client initialized.");
         Console.info("Type 'log on' to begin, 'quit' or 'exit' "
                      + "to exit (case-insensitive).");
