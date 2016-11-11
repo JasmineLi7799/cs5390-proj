@@ -4,5 +4,7 @@
 repository
 client.jar
 server.jar
+client.sh
+server.sh
 **/build
 **/lib
