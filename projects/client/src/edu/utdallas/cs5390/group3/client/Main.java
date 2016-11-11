@@ -29,9 +29,10 @@ public final class Main {
     public static void main(String[] args) throws Exception {
         Main.registerShutdownHook();
 
-        // TODO: Config file name should maybe be specifiable by CLI
-        // argument or option.
-        if (!Main.configure("client.cfg")) {
+        String configFileName = "client.cfg";
+        if(args.length > 0)
+            configFileName = args[0];
+        if (!Main.configure(configFileName)) {
             Console.fatal("Client initialization failed.");
             return;
         }

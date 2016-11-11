@@ -18,10 +18,11 @@ public final class Main {
     public static void main(String[] args) throws Exception {
         Main.registerShutdownHook();
 
-        // TODO: Config file name should maybe be specifiable by CLI
-        // argument or option.
+        String configFileName = "server.cfg";
+        if(args.length > 0)
+            configFileName = args[0];
         Config cfg = Config.instance();
-        if (!cfg.init("server.cfg")) {
+        if (!cfg.init(configFileName)) {
             Console.fatal("Server initialization failed.");
             return;
         }
