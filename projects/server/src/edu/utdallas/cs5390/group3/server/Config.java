@@ -20,6 +20,8 @@ public final class Config {
     private static final String DEFAULT_BIND_ADDR = "0.0.0.0";
     private static final int DEFAULT_BIND_PORT = 9876;
     private static final boolean DEFAULT_DEBUG_MODE = false;
+    private static final int[] DEFAULT_USER_IDS = {1,2};
+    private static final String[] DEFAULT_PRIVATE_KEYS = {"foo","bar"};
 
     private static Config _instance;
 
@@ -31,6 +33,8 @@ public final class Config {
     private InetAddress _bindAddr;
     private int _bindPort;
     private boolean _debugMode;
+    private int[] _userIDs;
+    private String[] _privateKeys;
 
     private Config() {
         _haveInit = false;
@@ -56,6 +60,16 @@ public final class Config {
     public boolean debugMode() {
         this.checkGetState();
         return _debugMode;
+    }
+
+    public int[] userIDs() {
+        this.checkGetState();
+        return _userIDs;
+    }
+
+    public String[] privateKeys() {
+        this.checkGetState();
+        return _privateKeys;
     }
 
     private void checkGetState() {
@@ -85,6 +99,8 @@ public final class Config {
             _bindAddr = this.validateBindAddress(props);
             _bindPort = this.validateBindPort(props);
             _debugMode = this.validateDebug(props);
+            _userIDs = this.validateUserIDs(props);
+            _privateKeys = this.validatePrivateKeys(props, _userIDs.length);
         } catch (NullPointerException e) {
             // If any property failed to validate, init() fails.
             return false;
@@ -197,6 +213,60 @@ public final class Config {
                             + " Must be 'true' or 'false'");
             throw new NullPointerException();
         }
+    }
+
+    private int[] validateUserIDs(final Properties props) 
+        throws NullPointerException {
+
+        String userProp = props.getProperty("user_ids");
+
+        // Default value if ommitted.
+        if (userProp == null || userProp.equals("")) {
+            return DEFAULT_USER_IDS;
+        }
+
+        String[] userPropArr = userProp.split(",");
+        int[] userIDs = new int[userPropArr.length];
+        
+        for(int i=0; i<userPropArr.length; i++)
+            if (userPropArr[i].matches("^[1-9][0-9]*$")) {
+                userIDs[i] = Integer.parseInt(userPropArr[i]);
+            } else {
+                Console.fatal("Malformed 'user_id' property in "
+                              + "'" + _configFileName + "': "
+                              + userPropArr[i]);
+                throw new NullPointerException();
+            }
+
+        return userIDs;
+    }
+
+    private String[] validatePrivateKeys(final Properties props, final int userIDsLength)
+        throws NullPointerException {
+
+        String pkProp = props.getProperty("private_keys");
+
+        // Default value if ommitted.
+        if (pkProp == null || pkProp.equals("")) {
+            return DEFAULT_PRIVATE_KEYS;
+        }
+
+        String[] pkPropArr = pkProp.split(",");
+
+        if(pkPropArr.length != userIDsLength){
+            Console.fatal("The number of user IDs is not equal to " +
+                "the number of private keys in '" + _configFileName + "'");
+            throw new NullPointerException();
+        }
+        
+        for(String pk: pkPropArr)
+            if (pk.equals("")) {
+                Console.fatal("Empty private key in "
+                              + "'" + _configFileName + "'");
+                throw new NullPointerException();
+            }
+
+        return pkPropArr;
     }
 
 }

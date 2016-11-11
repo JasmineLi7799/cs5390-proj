@@ -27,7 +27,6 @@ public final class Console {
     }
 
     // Debug output.
-    // TODO: debug mode toggle to globally squelch debug output.
     public static void debug(String message) {
         if(debugMode)
             write("[DEBUG]", message);

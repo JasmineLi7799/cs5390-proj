@@ -27,7 +27,7 @@ public final class Main {
             return;
         }
 
-        Server server = Server.instance();
+        Server server = Server.instance(cfg);
 
         server.spinWelcomeThread();
         Console.info("Type 'quit' or 'exit' to terminate (case-insensitive).");

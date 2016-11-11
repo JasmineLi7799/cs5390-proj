@@ -18,20 +18,34 @@ public final class Server {
     private Thread _welcomeThread;
     private ThreadGroup _threadGroup;
     private boolean _haveShutdown;
-    private ConcurrentHashMap<Integer, Client> _clientDB;
+    private static ConcurrentHashMap<Integer, Client> _clientDB;
     private ConcurrentHashMap<SocketAddress, ClientThread> _threadMap;
 
     private Server() {
         _threadGroup = new ThreadGroup("server");
         _haveShutdown = false;
         _threadMap = new ConcurrentHashMap<SocketAddress, ClientThread>();
-        _clientDB = new ConcurrentHashMap<Integer, Client>();
-        this.initDB();
     }
 
+    /*  2 versions:
+            instance()
+                Can be used before configure file created,
+                but doesn't initialize DB.
+                Used in registerShutdownHook().
+            instance(cfg)
+                Initializes DB using config file info.  */
     public static Server instance() {
         if (_instance == null) {
             _instance = new Server();
+        }
+        return _instance;
+    }
+    public static Server instance(Config cfg) {
+        if (_instance == null) {
+            _instance = new Server();
+        }
+        if(_clientDB == null){
+            initDB(cfg);
         }
         return _instance;
     }
@@ -77,12 +91,16 @@ public final class Server {
         return _welcomeThread.isAlive();
     }
 
-    // TODO: populate database from config file.
-    private void initDB() {
-        Client c = new Client(1, "foo");
-        _clientDB.put(c.id(), c);
-        c = new Client(2, "bar");
-        _clientDB.put(c.id(), c);
+    private static void initDB(Config cfg) {
+        _clientDB = new ConcurrentHashMap<Integer, Client>();
+
+        int[] uids = cfg.userIDs();
+        String[] pks = cfg.privateKeys();
+        
+        for(int i=0; i<uids.length; i++){
+            Client c = new Client(uids[i], pks[i]);
+            _clientDB.put(c.id(), c);
+        }
     }
 
     public Client findClientById(int id) {

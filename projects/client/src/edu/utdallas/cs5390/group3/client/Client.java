@@ -40,8 +40,6 @@ public final class Client {
     }
 
     public Client(int id, String privateKey) {
-        // TODO: read this info from a config file, or command line
-        // arguments, or whatever
         _id = id;
         _privateKey = privateKey;
         _stateLock = new Semaphore(1);
