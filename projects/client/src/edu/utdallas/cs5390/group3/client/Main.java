@@ -22,6 +22,7 @@ import java.net.InetSocketAddress;
 
 public final class Main {
     private static final int DEFAULT_SERVER_PORT = 9876;
+    private static final boolean DEFAULT_DEBUG_MODE = false;
     private static Client _client;
     private static InetSocketAddress _serverSockAddr;
 
@@ -34,9 +35,6 @@ public final class Main {
             Console.fatal("Client initialization failed.");
             return;
         }
-
-        if(args.length>1 && (args[1].equals("--debug") || args[1].equals("-D")))
-            Console.enterDebugMode();
 
         Console.info("Chat client initialized.");
         Console.info("Type 'log on' to begin, 'quit' or 'exit' "
@@ -105,6 +103,8 @@ public final class Main {
         _client = Main.loadClientConfig(config, configFileName);
         _serverSockAddr = Main.loadServerConfig(config,
                                                 configFileName);
+        if(loadDebugConfig(config, configFileName))
+            Console.enterDebugMode();
         if (_client == null || _serverSockAddr == null) {
             return false;
         }
@@ -202,6 +202,28 @@ public final class Main {
         }
 
         return new InetSocketAddress(serverAddr, serverPort);
+    }
+
+    private static boolean loadDebugConfig(
+        Properties config, String configFileName) {
+        
+        String debugProp = config.getProperty("debug");
+
+        // Default value if ommitted.
+        if (debugProp == null) {
+            return DEFAULT_DEBUG_MODE;
+        }
+
+        if (debugProp.equalsIgnoreCase("true"))
+            return true;
+        else if (debugProp.equalsIgnoreCase("false"))
+            return false;
+        else {
+            Console.fatal("Specified 'debug' property in "
+                            + "'" + configFileName + "' is invalid: '"
+                            + " Must be 'true' or 'false'");
+            throw new NullPointerException();
+        }
     }
 
     private static void registerShutdownHook() {

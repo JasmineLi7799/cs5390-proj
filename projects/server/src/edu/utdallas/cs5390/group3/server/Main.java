@@ -26,9 +26,6 @@ public final class Main {
             return;
         }
 
-        if(args.length>1 && (args[1].equals("--debug") || args[1].equals("-D")))
-            Console.enterDebugMode();
-
         Server server = Server.instance();
 
         server.spinWelcomeThread();
