@@ -15,6 +15,11 @@ import java.lang.IllegalStateException;
 import java.lang.NullPointerException;
 import java.net.UnknownHostException;
 
+/* The Config class is a singleton wrapper around the configuration
+ * file. It uses java.util.Properties for low-level file parsing,
+ * validates the raw property strings, and converts them to accessor
+ * methods that return an appropriate type.
+ */
 public final class Config {
     // Defaults
     private static final String DEFAULT_BIND_ADDR = "0.0.0.0";
@@ -29,12 +34,16 @@ public final class Config {
     private boolean _haveInit;
     private String _configFileName;
 
-    // Configuration properties
+    // Properties
     private InetAddress _bindAddr;
     private int _bindPort;
     private boolean _debugMode;
     private int[] _userIDs;
     private String[] _privateKeys;
+
+    // =========================================================================
+    // Constructor & instance accessor
+    // =========================================================================
 
     private Config() {
         _haveInit = false;
@@ -47,46 +56,61 @@ public final class Config {
         return _instance;
     }
 
-    public InetAddress bindAddr() {
-        this.checkGetState();
-        return _bindAddr;
-    }
+    // =========================================================================
+    // Property Accessors
+    // =========================================================================
 
-    public int bindPort() {
-        this.checkGetState();
-        return _bindPort;
-    }
-
-    public boolean debugMode() {
-        this.checkGetState();
-        return _debugMode;
-    }
-
-    public int[] userIDs() {
-        this.checkGetState();
-        return _userIDs;
-    }
-
-    public String[] privateKeys() {
-        this.checkGetState();
-        return _privateKeys;
-    }
-
-    private void checkGetState() {
+    /* Utility function for the accessors */
+    private void checkState() {
         if (!_haveInit) {
             throw new IllegalStateException(
                 "Must call Config.init() before getting properties.");
         }
     }
 
+    public InetAddress bindAddr() {
+        this.checkState();
+        return _bindAddr;
+    }
+
+    public int bindPort() {
+        this.checkState();
+        return _bindPort;
+    }
+
+    public boolean debugMode() {
+        this.checkState();
+        return _debugMode;
+    }
+
+    public int[] userIDs() {
+        this.checkState();
+        return _userIDs;
+    }
+
+    public String[] privateKeys() {
+        this.checkState();
+        return _privateKeys;
+    }
+
+    // =========================================================================
+    // Initialization
+    // =========================================================================
+
+    /* Initializes the Config option from a java.util.Properties style
+     * config file.
+     *
+     * @param configFileName Name of the config file to parse.
+     */
     public boolean init(final String configFileName) {
+        // Multiple initialization guard.
         if (_haveInit) {
             throw new IllegalStateException(
                 "Duplicate call to Config.init().");
         }
-        _configFileName = configFileName;
 
-        // Parse config file
+        // Parse config file with java.util.Properties
+        _configFileName = configFileName;
         Properties props = this.loadProperties();
         if (props == null) {
             Console.fatal("Could not load configuration file: '"
@@ -96,22 +120,27 @@ public final class Config {
 
         // Validate properties
         try {
-            _bindAddr = this.validateBindAddress(props);
-            _bindPort = this.validateBindPort(props);
-            _debugMode = this.validateDebug(props);
-            _userIDs = this.validateUserIDs(props);
-            _privateKeys = this.validatePrivateKeys(props, _userIDs.length);
+            this.validate(props);
         } catch (NullPointerException e) {
             // If any property failed to validate, init() fails.
             return false;
         }
 
+        // Since Console is a static class, its static blocks may be
+        // executed before the call to Config.init(). In other words,
+        // it can't configure itself, so we configure it from here
+        // instead.
         if(_debugMode)
             Console.enterDebugMode();
         _haveInit = true;
+
         return true;
     }
 
+    /* Perorms low-level file parsing with java.util.Properties
+     *
+     * @return The initialized Properties object
+     */
     private Properties loadProperties() {
         InputStream configFile = null;
         Properties props = new Properties();
@@ -127,6 +156,7 @@ public final class Config {
             try {
                 configFile.close();
             } catch (IOException e) {
+                // Not fatal, but certainly strange.
                 Console.warn("IOException while closing "
                             + "'" + _configFileName + "': " + e);
             }
@@ -134,24 +164,43 @@ public final class Config {
         return props;
     }
 
-    private InetAddress validateBindAddress(final Properties props) throws NullPointerException {
+    // =========================================================================
+    // Property Validation
+    // =========================================================================
+
+    /* Call each property's validator.
+     *
+     * @throws NullPointerException Thrown if any property is null
+     * (fails validation).
+     */
+    private void validate(Properties props) throws NullPointerException {
+        _bindAddr = this.validateBindAddress(props);
+        _bindPort = this.validateBindPort(props);
+        _debugMode = this.validateDebug(props);
+        _userIDs = this.validateUserIDs(props);
+        _privateKeys = this.validatePrivateKeys(props, _userIDs.length);
+    }
+
+    /* Validates 'bind_addr' property.
+     *
+     * @return Validated InetAddress object.
+     */
+    private InetAddress validateBindAddress(final Properties props)
+        throws NullPointerException {
+
         String serverAddrProp = props.getProperty("bind_addr");
 
         // default value if ommitted.
         if (serverAddrProp == null) {
             serverAddrProp = Config.DEFAULT_BIND_ADDR;
-        // translate '*' to an equiavlent that InetAddress.getByName()
-        // understands.
         } else if (serverAddrProp.equals("*")) {
+            // translate shorthand '*' -> '0.0.0.0'
             serverAddrProp = "0.0.0.0";
         }
 
-        // use InetAddress.getByName to validate the address.
-        //
-        // Note: this doesn't mean we can succesfully bind to the
-        // address, just that it is a valid address. If the address
-        // doesn't belong to this host, we'll catch that when we
-        // create the WelcomePort.
+        // Use InetAddress.getByName to validate the address.
+        // The address isn't necessarily bindable (could be non-local), but
+        // we'll kick that can to WelcomeSocket.open().
         InetAddress serverAddr;
         try {
             serverAddr = InetAddress.getByName(serverAddrProp);
@@ -166,7 +215,13 @@ public final class Config {
         return serverAddr;
     }
 
-    private int validateBindPort(final Properties props) throws NullPointerException {
+    /* Validates 'bind_port' property
+     *
+     * @return Validated port number.
+     */
+    private int validateBindPort(final Properties props)
+        throws NullPointerException {
+
         String bindPortProp = props.getProperty("bind_port");
 
         // Default value if ommitted.
@@ -195,12 +250,16 @@ public final class Config {
         return bindPort;
     }
 
+    /* Validate 'debug' property.
+     *
+     * @return Validated debug mode.
+     */
     private boolean validateDebug(final Properties props) throws NullPointerException {
         String debugProp = props.getProperty("debug");
 
         // Default value if ommitted.
         if (debugProp == null) {
-            return DEFAULT_DEBUG_MODE;
+            return Config.DEFAULT_DEBUG_MODE;
         }
 
         if (debugProp.equalsIgnoreCase("true"))
@@ -215,7 +274,7 @@ public final class Config {
         }
     }
 
-    private int[] validateUserIDs(final Properties props) 
+    private int[] validateUserIDs(final Properties props)
         throws NullPointerException {
 
         String userProp = props.getProperty("user_ids");
@@ -227,7 +286,7 @@ public final class Config {
 
         String[] userPropArr = userProp.split(",");
         int[] userIDs = new int[userPropArr.length];
-        
+
         for(int i=0; i<userPropArr.length; i++)
             if (userPropArr[i].matches("^[1-9][0-9]*$")) {
                 userIDs[i] = Integer.parseInt(userPropArr[i]);
@@ -258,7 +317,7 @@ public final class Config {
                 "the number of private keys in '" + _configFileName + "'");
             throw new NullPointerException();
         }
-        
+
         for(String pk: pkPropArr)
             if (pk.equals("")) {
                 Console.fatal("Empty private key in "
