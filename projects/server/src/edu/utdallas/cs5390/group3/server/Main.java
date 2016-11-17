@@ -12,9 +12,6 @@ import java.util.NoSuchElementException;
 import java.util.Scanner;
 
 public final class Main {
-    // TODO: roll System.in into Console object? Only a single thread
-    // reads from System.in, so we don't need a locking semaphore as
-    // with System.out...
     public static void main(String[] args) throws Exception {
         Main.registerShutdownHook();
 
@@ -31,7 +28,6 @@ public final class Main {
 
         server.spinWelcomeThread();
         Console.info("Type 'quit' or 'exit' to terminate (case-insensitive).");
-        Scanner in = new Scanner(System.in);
         while (!Thread.interrupted()) {
             if (!server.welcomeIsAlive()) {
                 Console.fatal("Welcome thread terminated unexpectedly.");
@@ -42,7 +38,7 @@ public final class Main {
                 System.exit(-1);
             }
             try {
-                String command = in.nextLine();
+                String command = Console.readLine();
                 if (command.matches("(?i:)^(quit|exit)$")) {
                     break;
                 } else {

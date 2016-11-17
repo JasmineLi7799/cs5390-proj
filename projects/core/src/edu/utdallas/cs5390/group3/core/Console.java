@@ -1,13 +1,23 @@
 package edu.utdallas.cs5390.group3.core;
 
 import java.util.concurrent.Semaphore;
+import java.util.Scanner;
 
 public final class Console {
     private static boolean debugMode = false;
     private static Semaphore _writeLock;
+    private static Scanner in = new Scanner(System.in);
 
     static {
         _writeLock = new Semaphore(1);
+    }
+
+    public static String readLine(){
+        return in.nextLine();
+    }
+
+    public static void closeReader(){
+        in.close();
     }
 
     private static void write(String prefix, String message) {
