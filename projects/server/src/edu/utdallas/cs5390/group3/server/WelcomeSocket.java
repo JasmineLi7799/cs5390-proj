@@ -13,7 +13,19 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.io.IOException;
 
+// TODO: this should probably extend DatagramSocket, but due to
+// differences in the implementation of send() and receive(), changing
+// this will require refactoring elsewhere.
+
+/* The WelcomeSocket is a thin wrapper around DatagramSocket.
+ * It maintains the thread map that maps a source (client)
+ * SocketAddress to a ClientThread. This is used to statefully
+ * dispatch UDP packets during the handshake process.
+ */
 public final class WelcomeSocket {
+    // These could be smaller, but the important thing is that no
+    // valid handshake-related protocol message will ever be larger
+    // than these buffers.
     private final static int RECV_BUF_SIZE = 1024;
     private final static int SEND_BUF_SIZE = 1024;
 
@@ -23,10 +35,25 @@ public final class WelcomeSocket {
     // for stateful UDP dispatching.
     private ConcurrentHashMap<SocketAddress, ClientThread> _threadMap;
 
+    // =========================================================================
+    // Constructor
+    // =========================================================================
+
+    /* Default constructor */
     public WelcomeSocket() {
         _threadMap = new ConcurrentHashMap<SocketAddress, ClientThread>();
     }
 
+    // =========================================================================
+    // Socket management
+    // =========================================================================
+
+    /* Opens and binds the WelcomeSocket.
+     *
+     * Obtains the bind address and port from the Config singleton.
+     *
+     * @return True on success, false on failure.
+     */
     public boolean open() {
         Config cfg = Config.instance();
         InetAddress addr = cfg.bindAddr();
@@ -45,6 +72,7 @@ public final class WelcomeSocket {
         return true;
     }
 
+    /* Closes the WelcomeSocket. */
     public void close() {
         if (!_socket.isClosed()) {
             String addr = _socket.getLocalAddress().getHostAddress();
@@ -54,6 +82,23 @@ public final class WelcomeSocket {
         }
     }
 
+    /* Is the socket closed?
+     *
+     * @return True if the socket is closed, false if it is open.
+     */
+    public boolean isClosed() {
+        return _socket.isClosed();
+    }
+
+    // =========================================================================
+    // Socket IO
+    // =========================================================================
+
+    /* Pulls a datagram off the wire.
+     *
+     * @return The packet retrieved from the socket, or null if an
+     * error occurred.
+     */
     public DatagramPacket receive() {
         byte[] buf = new byte[RECV_BUF_SIZE];
         DatagramPacket dgram = new DatagramPacket(buf, RECV_BUF_SIZE);
@@ -66,16 +111,19 @@ public final class WelcomeSocket {
         return dgram;
     }
 
+    /* Sends arbitrary data as a UDP datagram.
+     *
+     * @param data A byte array containing the payload.
+     * @param addr Destination address.
+     * @param port Destination port.
+     *
+     * @throws IOException Thrown from the underlying socket on error.
+     */
     public void send(byte[] data, InetAddress addr, int port) throws IOException {
         DatagramPacket dgram
             = new DatagramPacket(data, data.length, addr, port);
         _socket.send(dgram);
     }
-
-    public boolean isClosed() {
-        return _socket.isClosed();
-    }
-
 
     // =========================================================================
     // ClientThread mapping service
@@ -133,5 +181,4 @@ public final class WelcomeSocket {
     public ClientThread unmapThread(SocketAddress sockAddr) {
         return _threadMap.remove(sockAddr);
     }
-
 }
