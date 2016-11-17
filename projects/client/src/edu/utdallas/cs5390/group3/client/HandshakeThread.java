@@ -1,6 +1,7 @@
 package edu.utdallas.cs5390.group3.client;
 
 import edu.utdallas.cs5390.group3.core.Console;
+import edu.utdallas.cs5390.group3.core.Cryptor;
 
 import java.lang.Thread;
 
@@ -9,6 +10,7 @@ import java.net.InetSocketAddress;
 
 import java.net.SocketException;
 import java.lang.InterruptedException;
+import java.io.UnsupportedEncodingException;
 
 public final class HandshakeThread extends Thread {
     private static HandshakeSocket _handshakeSock;
@@ -67,7 +69,6 @@ public final class HandshakeThread extends Thread {
     }
 
     private void getChallenge() throws InterruptedException {
-        // TODO: parse and validate challenge datagram
         DatagramPacket challenge = _handshakeSock.receive();
         if (challenge == null) {
             System.exit(-1);
@@ -75,5 +76,15 @@ public final class HandshakeThread extends Thread {
         Console.debug("Got CHALLENGE from server.");
 
         _client.setState(Client.State.CHALLENGE_RECV);
+
+        try{
+            String challengeContents = new String(challenge.getData(), "UTF-8");
+            byte[] challengeResponse = Cryptor.hash1(challengeContents);
+
+            _handshakeSock.send(new String(challengeResponse, "UTF-8"));
+        }catch(UnsupportedEncodingException e){
+            Console.error("Error - server's challenge was not UTF-8 encodable");
+            return;
+        }
     }
 }
