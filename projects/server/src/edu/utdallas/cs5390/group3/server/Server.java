@@ -17,46 +17,36 @@ public final class Server {
 
     private Thread _welcomeThread;
     private ThreadGroup _threadGroup;
-    private boolean _haveShutdown;
+    private boolean _running;
     private static ConcurrentHashMap<Integer, Client> _clientDB;
     private ConcurrentHashMap<SocketAddress, ClientThread> _threadMap;
 
     private Server() {
         _threadGroup = new ThreadGroup("server");
-        _haveShutdown = false;
+        _running = false;
         _threadMap = new ConcurrentHashMap<SocketAddress, ClientThread>();
     }
 
-    /*  2 versions:
-            instance()
-                Can be used before configure file created,
-                but doesn't initialize DB.
-                Used in registerShutdownHook().
-            instance(cfg)
-                Initializes DB using config file info.  */
     public static Server instance() {
         if (_instance == null) {
             _instance = new Server();
         }
         return _instance;
     }
-    public static Server instance(Config cfg) {
-        if (_instance == null) {
-            _instance = new Server();
-        }
-        if(_clientDB == null){
-            initDB(cfg);
-        }
-        return _instance;
-    }
 
     public ThreadGroup threadGroup() { return _threadGroup; }
 
-    public void shutDown() {
-        /* If someone already manually invoked shutDown (normal exit),
-           don't do it again.  Calling shutDown() multiple times is
+    public void start() {
+        _welcomeThread = new WelcomeThread();
+        _welcomeThread.start();
+        _running = true;
+    }
+
+    public void stop() {
+        /* If someone already manually invoked stop() (normal exit),
+           don't do it again.  Calling stop() multiple times is
            safe, but it results in redundant console output. */
-        if (_haveShutdown) return;
+        if (!_running) return;
 
         Console.debug("Reaping threads...");
         _threadGroup.interrupt();
@@ -79,24 +69,20 @@ public final class Server {
         }
 
         Console.info("Server terminated.");
-        _haveShutdown = true;
-    }
-
-    public void spinWelcomeThread() {
-        _welcomeThread = new WelcomeThread();
-        _welcomeThread.start();
+        _running = false;
     }
 
     public boolean welcomeIsAlive() {
         return _welcomeThread.isAlive();
     }
 
-    private static void initDB(Config cfg) {
+    private static void initDB() {
         _clientDB = new ConcurrentHashMap<Integer, Client>();
 
+        Config cfg = Config.instance();
         int[] uids = cfg.userIDs();
         String[] pks = cfg.privateKeys();
-        
+
         for(int i=0; i<uids.length; i++){
             Client c = new Client(uids[i], pks[i]);
             _clientDB.put(c.id(), c);

@@ -35,9 +35,8 @@ public final class Main {
         }
 
         // Create server singleton
-        Server server = Server.instance(cfg);
-        // Start the WelcomeThread to listen for connections.
-        server.spinWelcomeThread();
+        Server server = Server.instance();
+        server.start();
 
         // Console input loop
         Console.info("Type 'quit' or 'exit' to terminate (case-insensitive).");
@@ -72,11 +71,11 @@ public final class Main {
         // If we don't make this call, the other threads of the server
         // will happily continue running without the main thread
         // (interactive console).
-        server.shutDown();
+        server.stop();
     }
 
     /* Whenever and wherever the program exits, we should try to call
-     * shutdown() on the server for a clean exit.
+     * stop() on the server for a clean exit.
      */
     private static void registerShutdownHook() {
         Runtime.getRuntime().addShutdownHook(
@@ -84,7 +83,7 @@ public final class Main {
                 new Runnable() {
                     @Override
                     public void run() {
-                        Server.instance().shutDown();
+                        Server.instance().stop();
                     }
                 }
             )
