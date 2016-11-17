@@ -21,17 +21,44 @@ import java.net.SocketAddress;
 import java.io.ByteArrayOutputStream;
 
 
+/* ClientThread implements a listener thread that accepts protocol
+ * messages from the client over UDP during the handshake, and subsequently
+ * TCP for a registered connection.
+ *
+ * More abstractly, ClientThread generates (most of) the inputs that drive
+ * the Client's state.
+ */
 public final class ClientThread extends Thread {
 
+    // Associated client info
     private Client _client;
     private InetAddress _clientAddr;
     private SocketAddress _clientSockAddr;
     private int _clientPort;
+
     private Server _server;
+
+    // Work queue for handshake process
     private LinkedBlockingQueue<DatagramPacket> _udpRcvBuffer;
+    // The ClientThread needs to write to the WelcomeSocket to
+    // generate responses during the handshake.
     private WelcomeSocket _welcomeSock;
 
+    // =========================================================================
+    // Constructor
+    // =========================================================================
+
+    /* Creates a new ClientThread associated with a particular source
+     * (client) socket.
+     *
+     * @param sockAddr The UDP socket address this ClientThread will
+     * service during handshake
+     * @param sock The WelcomeSocket the ClienThread will send
+     * responses over.
+     */
     public ClientThread(SocketAddress sockAddr, WelcomeSocket sock) {
+        // Creates a named thread. The name is in the format:
+        // "client listener 1.2.3.4:5"
         super(Server.instance().threadGroup(),
               "client listener "
               + ((InetSocketAddress)sockAddr).getAddress().getHostAddress()
@@ -53,8 +80,16 @@ public final class ClientThread extends Thread {
         _welcomeSock = sock;
     }
 
-    public Client client() { return _client; }
 
+    // =========================================================================
+    // Thread runtime management
+    // =========================================================================
+
+    /* ClientThread loop.
+     *
+     * Parses protocol messages from the network and updates the Client's
+     * state accordingly.
+     */
     public void run() {
         Console.debug("Spun new client listener thread for "
                       + _clientAddr.getHostAddress() + ":" + _clientPort + ".");
@@ -85,7 +120,32 @@ public final class ClientThread extends Thread {
         this.exitCleanup();
     }
 
+    /* Performs cleanup tasks whenever the thread exits.
+     *
+     * Primarily, this unmaps the thread from the WelcomeSocket's
+     * thread map so that no future UDP datagrams will be routed here.
+     */
+    private void exitCleanup() {
+        Console.debug("Listener thread for " + _clientAddr.getHostAddress()
+                      + ":" + _clientPort + " is exiting.");
+        if (_welcomeSock.unmapThread(_clientSockAddr) == null) {
+            Console.warn("Tried to unmap listener thread for "
+                         + _clientAddr.getHostAddress()
+                         + ":" + _clientPort
+                         + ", but it was not found in the thread map.");
+        }
+    }
+
+    // =========================================================================
+    // Protocol message parsing
+    // =========================================================================
+
+    /* Validates HELLO messages.
+     *
+     * @return True if a valid HELLO message was received.
+     */
     private boolean getHello() throws InterruptedException {
+        // Fetch the next datagram from the work queue.
         DatagramPacket dgram = this.udpTake();
 
         // Set up a scanner to parse the datagram.
@@ -131,6 +191,10 @@ public final class ClientThread extends Thread {
         return true;
     }
 
+    /* Generates a CHALLENGE message.
+     *
+     * @return True if CHALLENGE was succesfully sent.
+     */
     private boolean sendChallenge() {
         // Generate secure random 32-bit value.
         byte[] rand = new byte[4];
@@ -163,23 +227,24 @@ public final class ClientThread extends Thread {
         return true;
     }
 
+    // =========================================================================
+    // WelcomeSocket IO
+    // =========================================================================
+
+    /* Takes the next UDP datagram from the work queue.
+     *
+     * @return The next UDP datagram in the queue.
+     */
     private DatagramPacket udpTake() throws InterruptedException {
         return _udpRcvBuffer.take();
     }
 
+    /* Enqueues a UDP datagram to the work queue.
+     *
+     * @param dgram The datagram to enqueue.
+     */
     public void udpPut(DatagramPacket dgram) throws InterruptedException {
         _udpRcvBuffer.put(dgram);
-    }
-
-    private void exitCleanup() {
-        Console.debug("Listener thread for " + _clientAddr.getHostAddress()
-                      + ":" + _clientPort + " is exiting.");
-        if (_welcomeSock.unmapThread(_clientSockAddr) == null) {
-            Console.warn("Tried to unmap listener thread for "
-                         + _clientAddr.getHostAddress()
-                         + ":" + _clientPort
-                         + ", but it was not found in the thread map.");
-        }
     }
 
 }
