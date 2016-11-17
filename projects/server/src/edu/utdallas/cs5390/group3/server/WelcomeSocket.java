@@ -13,14 +13,15 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.io.IOException;
 
-// TODO: this should probably extend DatagramSocket, but due to
-// differences in the implementation of send() and receive(), changing
-// this will require refactoring elsewhere.
-
 /* The WelcomeSocket is a thin wrapper around DatagramSocket.
+ *
  * It maintains the thread map that maps a source (client)
  * SocketAddress to a ClientThread. This is used to statefully
  * dispatch UDP packets during the handshake process.
+ *
+ * It doesn't directly extend DatagramSocket because it implements
+ * send(), receive(), and the constructor in a slightly different,
+ * more convenient way.
  */
 public final class WelcomeSocket {
     // These could be smaller, but the important thing is that no
