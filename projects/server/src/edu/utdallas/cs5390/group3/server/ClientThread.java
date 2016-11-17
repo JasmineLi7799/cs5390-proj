@@ -174,7 +174,7 @@ public final class ClientThread extends Thread {
     private void exitCleanup() {
         Console.debug("Listener thread for " + _clientAddr.getHostAddress()
                       + ":" + _clientPort + " is exiting.");
-        if (_server.unMapThread(_clientSockAddr) == null) {
+        if (_welcomeSock.unmapThread(_clientSockAddr) == null) {
             Console.warn("Tried to unmap listener thread for "
                          + _clientAddr.getHostAddress()
                          + ":" + _clientPort

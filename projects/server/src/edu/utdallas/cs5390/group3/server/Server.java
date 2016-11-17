@@ -2,13 +2,12 @@ package edu.utdallas.cs5390.group3.server;
 
 import edu.utdallas.cs5390.group3.core.Console;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 import java.lang.Thread;
 import java.lang.ThreadGroup;
 
 import java.util.Iterator;
-import java.util.concurrent.ConcurrentHashMap;
-
-import java.net.SocketAddress;
 
 import java.lang.NullPointerException;
 
@@ -25,8 +24,7 @@ public final class Server {
     private Thread _welcomeThread;
 
     // Lookup services
-    private static ConcurrentHashMap<Integer, Client> _clientDB;
-    private ConcurrentHashMap<SocketAddress, ClientThread> _threadMap;
+    private ConcurrentHashMap<Integer, Client> _clientDB;
 
     // =========================================================================
     // Constructor & instance accessor. Initialization
@@ -35,7 +33,6 @@ public final class Server {
     private Server() {
         _threadGroup = new ThreadGroup("server");
         _running = false;
-        _threadMap = new ConcurrentHashMap<SocketAddress, ClientThread>();
         this.initDB();
     }
 
@@ -49,7 +46,7 @@ public final class Server {
     /* Populates the client database.
      *
      */
-    private static void initDB() {
+    private void initDB() {
         _clientDB = new ConcurrentHashMap<Integer, Client>();
 
         Config cfg = Config.instance();
@@ -163,52 +160,6 @@ public final class Server {
             return null;
         }
         return client;
-    }
-
-    // TODO:
-    //
-    // All of the client threadmap functionality should probably
-    // be relocated to WelcomeThread. I don't think anything else actually
-    // uses this.
-    //
-    // Concurrently, these need better documentation, but it's better
-    // to move them first and do that while documenting WelcomeThread.
-
-    /* Locates a ClientThread listener by the client's SocketAddress.
-     *
-     * @param id The SocketAddress to search for.
-     *
-     * @return Matching ClientThread object, if one was found.
-     *
-     * @throws NullPointerException Thrown if no match was found.
-     */
-    public ClientThread findThreadBySocket(SocketAddress sockAddr) {
-        ClientThread thread;
-        try {
-            thread = _threadMap.get(sockAddr);
-        } catch (NullPointerException e) {
-            return null;
-        }
-        return thread;
-    }
-
-    /* Maps a ClientThread listener to a client connection's
-     * SocketAddress.
-     *
-     * @param sockAddr The socket address of the client connection.
-     * @param thread The ClientThread listener.
-     */
-    public void mapThread(SocketAddress sockAddr, ClientThread thread) {
-        _threadMap.put(sockAddr, thread);
-    }
-
-    /* Unmaps the ClientThread listener for a client connection's
-     * SocketAddress.
-     *
-     * @param sockAddr The socket address of the client connection.
-     */
-    public ClientThread unMapThread(SocketAddress sockAddr) {
-        return _threadMap.remove(sockAddr);
     }
 
     // =========================================================================
