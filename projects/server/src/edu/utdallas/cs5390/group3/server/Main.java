@@ -43,7 +43,7 @@ public final class Main {
         Scanner in = new Scanner(System.in);
         while (!Thread.interrupted()) {
             // If the WelcomeThread dies, the server is toast.
-            if (!server.welcomeIsAlive()) {
+            if (!server.isAlive()) {
                 Console.fatal("Welcome thread terminated unexpectedly.");
                 break;
             }
