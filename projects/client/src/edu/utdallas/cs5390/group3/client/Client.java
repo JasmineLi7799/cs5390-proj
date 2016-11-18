@@ -8,13 +8,7 @@ import java.lang.InterruptedException;
 
 /* The Client class stores client information and represents the
  * client as a state machine that changes in response to inputs from
- * its ClientThread.
- *
- * The Client's state also controls whether and how other
- * ClientThreads are permitted to interact with the Client.  For
- * instance, when Client B attempts to send a message to Client A,
- * Client B's ClientThread will check whether Client A is in a valid
- * state to receive the message.
+ * various network threads.
  */
 public final class Client {
     // Basic client info.
