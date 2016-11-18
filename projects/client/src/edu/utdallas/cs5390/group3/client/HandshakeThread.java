@@ -16,14 +16,25 @@ import java.lang.NullPointerException;
 import java.util.Arrays;
 import java.util.Scanner;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+
+import java.math.BigInteger;
 
 public final class HandshakeThread extends Thread {
     private static HandshakeSocket _handshakeSock;
 
     private Client _client;
 
-    public HandshakeThread(Client client)
-        throws SocketException {
+    // =========================================================================
+    // Constructor
+    // =========================================================================
+
+     /* Constructs a HandshakeThread for the specified client.
+      *
+      * @param client The Client object associated with this handshake.
+      */
+    public HandshakeThread(Client client) throws SocketException {
 
         super();
         _client = client;
@@ -33,12 +44,23 @@ public final class HandshakeThread extends Thread {
         _handshakeSock = new HandshakeSocket(serverSockAddr);
     }
 
+    // =========================================================================
+    // Thread runtime management
+    // =========================================================================
+
+    /* Interrupts the thread.
+     *
+     * Socket read/write does not throw InterruptedExceptions, so we interrupt
+     * these blocking calls by closing the underlying port. */
     @Override
     public void interrupt() {
         super.interrupt();
         _handshakeSock.close();
     }
 
+    /* This worker thread performs the HELLO, CHALLENGE, RESPONSE,
+     * AUTHENTICATED handshake process.
+     */
     @Override
     public void run() {
         try {
@@ -60,15 +82,34 @@ public final class HandshakeThread extends Thread {
             return;
         }
 
+        try {
+            this.sendResponse(rand);
+        } catch (IOException e) {
+            Console.fatal("While sending RESPONSE caught: " + e);
+            return;
+        } catch (InterruptedException e) {
+            return;
+        }
+
         // TODO: finish handshake.
         Console.debug("Handshake thread is terminating.");
     }
 
+    // =========================================================================
+    // Message processing
+    // =========================================================================
+
+    /* Generates and sends a HELLO message to the server. */
     private void sendHello() throws InterruptedException, IOException {
         _handshakeSock.send("HELLO " + _client.id());
         _client.setState(Client.State.HELLO_SENT);
     }
 
+    /* Repeatedly tries to get a CHALLENGE response from the workequeue
+     * until successful.
+     *
+     * @return The "rand" value of the CHALLENGE
+     */
     private byte[] getChallenge() throws InterruptedException, IOException {
         while (!Thread.interrupted()) {
             DatagramPacket dgram = _handshakeSock.receive();
@@ -99,13 +140,51 @@ public final class HandshakeThread extends Thread {
             // start and exclusive on the end. Don't ask me why.
             byte[] rand = Arrays.copyOfRange(dgram.getData(), 10, 14);
             _client.setState(Client.State.CHALLENGE_RECV);
-            Console.info("Got CHALLENGE from server (rand = "
-                          + String.format("0x%02X%02X%02X%02X",
-                                          rand[0], rand[1],
-                                          rand[2], rand[3])
-                          + ")");
+            Console.info("Received CHALLENGE from server...");
+            Console.debug(
+                String.format("rand = %08X", new BigInteger(1, rand)));
             return rand;
         }
         throw new InterruptedException();
+    }
+
+    /* Generates and sends the challenge RESPONSE
+     *
+     * @param rand The rand value from the CHALLENGE.
+     */
+    private void sendResponse(byte[] rand)
+        throws InterruptedException, IOException {
+
+        // Generate the res value.
+        ByteArrayOutputStream hashInput
+            = new ByteArrayOutputStream();
+        hashInput.write(
+            _client.privateKey().getBytes(StandardCharsets.UTF_8));
+        hashInput.write(rand);
+        byte[] res = Cryptor.hash1(hashInput.toByteArray());
+        hashInput.close();
+
+        // Construct the response packet payload.
+        ByteArrayOutputStream responseStream
+            = new ByteArrayOutputStream();
+        responseStream.write("RESPONSE ".getBytes(
+            StandardCharsets.UTF_8));
+        responseStream.write(_client.id());
+        responseStream.write(0x20); // space
+        responseStream.write(res);
+        byte[] response = responseStream.toByteArray();
+        responseStream.close();
+
+        Console.info("Sending RESPONSE to server...");
+        // Note: you can verify this using "echo" and "md5sum".
+        // Suppose your private key is 'foo' and the rand value shown
+        // is 'DEADBEEF'. Do:
+        //    echo -en "foo\xDE\xAD\xBE\xEF" | md5sum"
+        // The hash should match.
+        Console.debug(String.format("res = %032X", new BigInteger(1, res)));
+        // Send the response
+        _handshakeSock.send(response);
+
+        _client.setState(Client.State.RESPONSE_SENT);
     }
 }
