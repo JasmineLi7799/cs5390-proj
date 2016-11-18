@@ -15,12 +15,14 @@ public final class HandshakeThread extends Thread {
 
     private Client _client;
 
-    public HandshakeThread(Client client,
-        InetSocketAddress serverSockAddr)
+    public HandshakeThread(Client client)
         throws SocketException {
 
         super();
         _client = client;
+        InetSocketAddress serverSockAddr =
+            new InetSocketAddress(_client.config.serverAddr(),
+                                  _client.config.serverPort());
         _handshakeSock = new HandshakeSocket(serverSockAddr);
     }
 

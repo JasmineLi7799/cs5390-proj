@@ -15,6 +15,9 @@ public final class Client {
     private int _id;
     private String _privateKey;
 
+    // Configuration node
+    public Config config;
+
     // Client state and guard semaphore.
     private State _state;
     private Semaphore _stateLock;
@@ -34,13 +37,12 @@ public final class Client {
 
     /* Creates a Client in the START state.
      *
-     * @param id Client ID
-     * @param privateKey Private key used for authentication and
-     * encryption.
+     * @param cfg Client configuration object.
      */
-    public Client(int id, String privateKey) {
-        _id = id;
-        _privateKey = privateKey;
+    public Client(Config cfg) {
+        this.config = cfg;
+        _id = this.config.clientId();
+        _privateKey = this.config.privateKey();
         _stateLock = new Semaphore(1);
         _state = State.START;
     }
