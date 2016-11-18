@@ -32,6 +32,8 @@ public final class WelcomeSocket {
 
     private DatagramSocket _socket;
 
+    private Server _server;
+
     // Maps source (client) SocketAddresses to ClientThread listeners
     // for stateful UDP dispatching.
     private ConcurrentHashMap<SocketAddress, ClientThread> _threadMap;
@@ -42,6 +44,7 @@ public final class WelcomeSocket {
 
     /* Default constructor */
     public WelcomeSocket() {
+        _server = Server.instance();
         _threadMap = new ConcurrentHashMap<SocketAddress, ClientThread>();
     }
 
@@ -51,14 +54,13 @@ public final class WelcomeSocket {
 
     /* Opens and binds the WelcomeSocket.
      *
-     * Obtains the bind address and port from the Config singleton.
+     * Obtains the bind address and port from Server.config
      *
      * @return True on success, false on failure.
      */
     public boolean open() {
-        Config cfg = Config.instance();
-        InetAddress addr = cfg.bindAddr();
-        int port = cfg.bindPort();
+        InetAddress addr = _server.config.bindAddr();
+        int port = _server.config.bindPort();
 
         try {
             _socket = new DatagramSocket(port, addr);

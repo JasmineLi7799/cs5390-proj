@@ -15,7 +15,7 @@ import java.lang.IllegalStateException;
 import java.lang.NullPointerException;
 import java.net.UnknownHostException;
 
-/* The Config class is a singleton wrapper around the configuration
+/* The Config class is a wrapper around the configuration
  * file. It uses java.util.Properties for low-level file parsing,
  * validates the raw property strings, and converts them to accessor
  * methods that return an appropriate type.
@@ -28,10 +28,7 @@ public final class Config {
     private static final int[] DEFAULT_USER_IDS = {1,2};
     private static final String[] DEFAULT_PRIVATE_KEYS = {"foo","bar"};
 
-    private static Config _instance;
-
     // Bookkeeping
-    private boolean _haveInit;
     private String _configFileName;
 
     // Properties
@@ -42,100 +39,69 @@ public final class Config {
     private String[] _privateKeys;
 
     // =========================================================================
-    // Constructor & instance accessor
+    // Constructor
     // =========================================================================
 
-    private Config() {
-        _haveInit = false;
-    }
-
-    public static Config instance() {
-        if (_instance == null) {
-            _instance = new Config();
-        }
-        return _instance;
-    }
-
-    // =========================================================================
-    // Property Accessors
-    // =========================================================================
-
-    /* Utility function for the accessors */
-    private void checkState() {
-        if (!_haveInit) {
-            throw new IllegalStateException(
-                "Must call Config.init() before getting properties.");
-        }
-    }
-
-    public InetAddress bindAddr() {
-        this.checkState();
-        return _bindAddr;
-    }
-
-    public int bindPort() {
-        this.checkState();
-        return _bindPort;
-    }
-
-    public boolean debugMode() {
-        this.checkState();
-        return _debugMode;
-    }
-
-    public int[] userIDs() {
-        this.checkState();
-        return _userIDs;
-    }
-
-    public String[] privateKeys() {
-        this.checkState();
-        return _privateKeys;
-    }
-
-    // =========================================================================
-    // Initialization
-    // =========================================================================
-
-    /* Initializes the Config option from a java.util.Properties style
+    /* Initializes a Config object from a java.util.Properties style
      * config file.
      *
      * @param configFileName Name of the config file to parse.
      */
-    public boolean init(final String configFileName) {
-        // Multiple initialization guard.
-        if (_haveInit) {
-            throw new IllegalStateException(
-                "Duplicate call to Config.init().");
-        }
+    public Config(final String configFileName)
+        throws NullPointerException {
 
         // Parse config file with java.util.Properties
         _configFileName = configFileName;
         Properties props = this.loadProperties();
         if (props == null) {
-            Console.fatal("Could not load configuration file: '"
-                          + _configFileName + "'");
-            return false;
+            throw new NullPointerException(
+                "Could not load configuration file: '"
+                + _configFileName + "'");
         }
 
         // Validate properties
         try {
             this.validate(props);
         } catch (NullPointerException e) {
-            // If any property failed to validate, init() fails.
-            return false;
+            // If any property failed to validate, die.
+            throw new NullPointerException();
         }
 
         // Since Console is a static class, its static blocks may be
-        // executed before the call to Config.init(). In other words,
-        // it can't configure itself, so we configure it from here
+        // executed before the Config(). In other words, it can't
+        // configure itself, so we have to configure it from here
         // instead.
         if(_debugMode)
             Console.enterDebugMode();
-        _haveInit = true;
-
-        return true;
     }
+
+    // =========================================================================
+    // Property Accessors
+    // =========================================================================
+
+    public InetAddress bindAddr() {
+        return _bindAddr;
+    }
+
+    public int bindPort() {
+        return _bindPort;
+    }
+
+    public boolean debugMode() {
+        return _debugMode;
+    }
+
+    public int[] userIDs() {
+        return _userIDs;
+    }
+
+    public String[] privateKeys() {
+        return _privateKeys;
+    }
+
+    // =========================================================================
+    // Initialization
+    // =========================================================================
 
     /* Perorms low-level file parsing with java.util.Properties
      *

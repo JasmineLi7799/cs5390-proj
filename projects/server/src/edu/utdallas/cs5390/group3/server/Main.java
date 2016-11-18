@@ -20,23 +20,30 @@ public final class Main {
     // reads from System.in, so we don't need a locking semaphore as
     // with System.out...
     public static void main(String[] args) throws Exception {
-        Main.registerShutdownHook();
 
-        // Initialize Config singleton so that various objects in the
-        // system can obtain these parameters without excessive
-        // parameter passing.
+        // Create, configure, and start server
         String configFileName = "server.cfg";
         if(args.length > 0)
             configFileName = args[0];
-        Config cfg = Config.instance();
-        if (!cfg.init(configFileName)) {
-            Console.fatal("Server initialization failed.");
+        Server server = Server.instance();
+        try {
+            server.configure(configFileName);
+        } catch (IllegalStateException | NullPointerException e) {
+            Console.fatal("Could not configure server: "
+                          + e.getMessage());
+            return;
+        }
+        try {
+            server.start();
+        } catch (IllegalStateException e) {
+            Console.fatal("Could not start server: "
+                          + e.getMessage());
             return;
         }
 
-        // Create server singleton
-        Server server = Server.instance();
-        server.start();
+        // From here on, if anything causes the process to terminate, we
+        // want to try to stop() the Server as part of the termination.
+        Main.registerShutdownHook();
 
         // Console input loop
         Console.info("Type 'quit' or 'exit' to terminate (case-insensitive).");

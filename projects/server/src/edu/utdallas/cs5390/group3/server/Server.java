@@ -25,17 +25,23 @@ public final class Server {
 
     // Lookup services
     private ConcurrentHashMap<Integer, Client> _clientDB;
+    public Config config;
 
     // =========================================================================
     // Constructor & instance accessor. Initialization
     // =========================================================================
 
+    /* Creates the server instance. */
     private Server() {
         _threadGroup = new ThreadGroup("server");
         _running = false;
-        this.initDB();
+        this.config = null;
     }
 
+    /* Gets the server instance, creating it if necessary.
+     *
+     * @return The server instance.
+     */
     public static Server instance() {
         if (_instance == null) {
             _instance = new Server();
@@ -43,21 +49,27 @@ public final class Server {
         return _instance;
     }
 
-    /* Populates the client database.
+    /* Initializes the Config node and Client database.
      *
+     * @param configFileName Config file to parse.
      */
-    private void initDB() {
+    public void configure(String configFileName)
+        throws IllegalStateException, NullPointerException {
+        if (config != null) {
+            throw new IllegalStateException(
+                "Multiple invocations of Server.configure()");
+        }
+        this.config = new Config(configFileName);
+
         _clientDB = new ConcurrentHashMap<Integer, Client>();
-
-        Config cfg = Config.instance();
-        int[] uids = cfg.userIDs();
-        String[] pks = cfg.privateKeys();
-
-        for(int i=0; i<uids.length; i++){
-            Client c = new Client(uids[i], pks[i]);
+        int[] uids = this.config.userIDs();
+        String[] pkeys = this.config.privateKeys();
+        for(int i = 0; i < uids.length; i++) {
+            Client c = new Client(uids[i], pkeys[i]);
             _clientDB.put(c.id(), c);
         }
     }
+
 
     // =========================================================================
     // Accessors/mutators
@@ -84,6 +96,10 @@ public final class Server {
         if (_running) {
             throw new IllegalStateException(
                 "Server.start() called while server already running.");
+        }
+        if (this.config == null) {
+            throw new IllegalStateException(
+                "Server.start() called before Server.configure()");
         }
         _welcomeThread = new WelcomeThread();
         _welcomeThread.start();
