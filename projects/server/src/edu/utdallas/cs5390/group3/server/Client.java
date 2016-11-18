@@ -26,7 +26,7 @@ public final class Client {
     private State _state;
     private Semaphore _stateLock;
     public static enum State {
-        START,
+        OFFLINE,
         HELLO_RECV,
         CHALLENGE_SENT,
         RESPONSE_RECV,
@@ -50,7 +50,7 @@ public final class Client {
     // Constructor
     // =========================================================================
 
-    /* Creates a Client in the START state.
+    /* Creates a Client in the OFFLINE state.
      *
      * @param id Client ID
      * @param k Private key used for authentication and
@@ -60,7 +60,7 @@ public final class Client {
         _id = id;
         _privateKey = k;
         _stateLock = new Semaphore(1);
-        _state = Client.State.START;
+        _state = Client.State.OFFLINE;
     }
 
     // =========================================================================
@@ -68,6 +68,7 @@ public final class Client {
     // =========================================================================
 
     public int id() { return _id; }
+    public String privateKey() { return _privateKey; }
     public ClientSocket socket() { return _socket; }
 
     public State state() throws InterruptedException {

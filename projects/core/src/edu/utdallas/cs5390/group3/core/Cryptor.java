@@ -7,6 +7,9 @@ import java.nio.charset.StandardCharsets;
 
 import java.io.UnsupportedEncodingException;
 import java.security.NoSuchAlgorithmException;
+import java.io.IOException;
+
+import java.io.ByteArrayOutputStream;
 
 public final class Cryptor {
     private static MessageDigest _md5;
@@ -41,6 +44,26 @@ public final class Cryptor {
 
     // = MD5
     // Used to issue response to server challenge.
+    public static byte[] hash1(String pk, byte[] rand) {
+        ByteArrayOutputStream concat
+            = new ByteArrayOutputStream();
+        try {
+            concat.write(pk.getBytes(StandardCharsets.UTF_8));
+            concat.write(rand);
+        } catch (IOException e) {
+            // This can't really fail since the underlying "stream" is a
+            // byte array.
+        }
+        byte[] digest = hash1(concat.toByteArray());
+        try {
+            concat.close();
+        } catch (IOException e) {
+            // This can't really fail since the underlying "stream" is a
+            // byte array.
+        }
+        return digest;
+    }
+
     public static byte[] hash1(String s) {
         return hash1(s.getBytes(StandardCharsets.UTF_8));
     }

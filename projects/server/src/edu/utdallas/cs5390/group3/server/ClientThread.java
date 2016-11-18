@@ -39,6 +39,7 @@ public final class ClientThread extends Thread {
     private InetAddress _clientAddr;
     private SocketAddress _clientSockAddr;
     private int _clientPort;
+    private byte[] _xres;
 
     private Server _server;
 
@@ -189,7 +190,7 @@ public final class ClientThread extends Thread {
 
         // Are we in the right state for this?
         if (_client != null
-            && _client.state() != Client.State.START) {
+            && _client.state() != Client.State.OFFLINE) {
             Console.warn(tag("Received HELLO in invalid state"));
             return;
         }
@@ -235,6 +236,8 @@ public final class ClientThread extends Thread {
         // Send the challenge
         Console.debug(tag("Sending CHALLENGE"));
         Console.debug(tag("Content = " + payload));
+
+        _xres = Cryptor.hash1(_client.privateKey(), randBytes);
         _welcomeSock.send(payload, _clientAddr, _clientPort);
     }
 
@@ -243,7 +246,7 @@ public final class ClientThread extends Thread {
      * @param dgram The datagram containing the RESPONSE.
      */
     private void handleResponse(DatagramPacket dgram)
-        throws InterruptedException {
+        throws InterruptedException, IOException {
 
         if (_client != null
             && _client.state() != Client.State.CHALLENGE_SENT) {
@@ -271,14 +274,24 @@ public final class ClientThread extends Thread {
             Console.warn(tag("Receieved truncated RESPONSE (expected res)"));
             return;
         }
-        String res = response.next();
+        String resString = response.next();
         if (response.hasNext()) {
             Console.warn(tag("Extra bytes in RESPONSE"));
         }
 
         Console.debug(tag("Received RESPONSE"));
-        Console.debug(tag("res = " + res));
-        _client.setState(Client.State.AUTHENTICATED);
+        Console.debug(tag("res = " + resString));
+
+        byte[] res = DatatypeConverter.parseHexBinary(resString);
+        if (Arrays.equals(res, _xres)) {
+            _welcomeSock.send("AUTH_SUCCESS", _clientAddr, _clientPort);
+            _client.setState(Client.State.AUTHENTICATED);
+            Console.info(tag("AUTH_SUCCESS"));
+        } else {
+            _welcomeSock.send("AUTH_FAIL", _clientAddr, _clientPort);
+            _client.setState(Client.State.OFFLINE);
+            Console.info(tag("AUTH_FAIL"));
+        }
     }
 
     // =========================================================================
