@@ -13,6 +13,8 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.io.IOException;
 
+import java.nio.charset.StandardCharsets;
+
 /* The WelcomeSocket is a thin wrapper around DatagramSocket.
  *
  * It maintains the thread map that maps a source (client)
@@ -114,15 +116,27 @@ public final class WelcomeSocket {
         return dgram;
     }
 
+    /* Sends a String as a UDP datagram.
+     *
+     * @param data A String containing the payload.
+     * @param addr Destination address.
+     * @param port Destination port.
+     */
+    public void send(String data, InetAddress addr, int port)
+        throws IOException {
+
+        send(data.getBytes(StandardCharsets.UTF_8), addr, port);
+    }
+
     /* Sends arbitrary data as a UDP datagram.
      *
      * @param data A byte array containing the payload.
      * @param addr Destination address.
      * @param port Destination port.
-     *
-     * @throws IOException Thrown from the underlying socket on error.
      */
-    public void send(byte[] data, InetAddress addr, int port) throws IOException {
+    public void send(byte[] data, InetAddress addr, int port)
+        throws IOException {
+
         DatagramPacket dgram
             = new DatagramPacket(data, data.length, addr, port);
         _socket.send(dgram);

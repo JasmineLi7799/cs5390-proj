@@ -18,8 +18,9 @@ import java.util.Scanner;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-
-import java.math.BigInteger;
+// There's no XML here. We just need this to convert hex strings to byte arrays
+// without reinventing the wheel.
+import javax.xml.bind.DatatypeConverter;
 
 public final class HandshakeThread extends Thread {
     private static HandshakeSocket _handshakeSock;
@@ -122,27 +123,25 @@ public final class HandshakeThread extends Thread {
             Scanner msg = new Scanner(new ByteArrayInputStream(
                 dgram.getData(), 0, dgram.getLength()));
             if (!msg.hasNext("CHALLENGE")) {
-                // Since this could be arbitrary binary data, we can't
-                // really print the unexpected reply to the console...
-                Console.warn("Received unexpected reply from server.");
+                Console.warn("Received unexpected reply.");
+                continue;
+            }
+            msg.next();
+
+            if (!msg.hasNext()) {
+                Console.warn("Received truncated CHALLENGE.");
                 continue;
             }
 
-            if (dgram.getLength() < 14) {
-                Console.warn("Received truncated CHALLENGE from server.");
-                continue;
-            } else if (dgram.getLength() > 14) {
-                Console.warn("Ignoring unexpected bytes at end of CHALLENGE "
-                             + "from server.");
+            String randString = msg.next();
+            if (msg.hasNext()) {
+                Console.warn("Receieve CHALLENGE with extra bytes.");
             }
+            byte[] rand = DatatypeConverter.parseHexBinary(randString);
 
-            // 14 is not a typo; the range of copyOfRange is inclusive on the
-            // start and exclusive on the end. Don't ask me why.
-            byte[] rand = Arrays.copyOfRange(dgram.getData(), 10, 14);
             _client.setState(Client.State.CHALLENGE_RECV);
             Console.info("Received CHALLENGE from server...");
-            Console.debug(
-                String.format("rand = %08X", new BigInteger(1, rand)));
+            Console.debug("rand = " + randString);
             return rand;
         }
         throw new InterruptedException();
@@ -161,29 +160,19 @@ public final class HandshakeThread extends Thread {
         hashInput.write(
             _client.privateKey().getBytes(StandardCharsets.UTF_8));
         hashInput.write(rand);
-        byte[] res = Cryptor.hash1(hashInput.toByteArray());
+        byte[] resBytes = Cryptor.hash1(hashInput.toByteArray());
         hashInput.close();
+        String res = DatatypeConverter.printHexBinary(resBytes);
 
-        // Construct the response packet payload.
-        ByteArrayOutputStream responseStream
-            = new ByteArrayOutputStream();
-        responseStream.write("RESPONSE ".getBytes(
-            StandardCharsets.UTF_8));
-        responseStream.write(_client.id());
-        responseStream.write(0x20); // space
-        responseStream.write(res);
-        byte[] response = responseStream.toByteArray();
-        responseStream.close();
+        String payload = String.format(
+            "RESPONSE %d %s",
+            _client.id(),
+            res);
 
         Console.info("Sending RESPONSE to server...");
-        // Note: you can verify this using "echo" and "md5sum".
-        // Suppose your private key is 'foo' and the rand value shown
-        // is 'DEADBEEF'. Do:
-        //    echo -en "foo\xDE\xAD\xBE\xEF" | md5sum"
-        // The hash should match.
-        Console.debug(String.format("res = %032X", new BigInteger(1, res)));
+        Console.debug(payload);
         // Send the response
-        _handshakeSock.send(response);
+        _handshakeSock.send(payload);
 
         _client.setState(Client.State.RESPONSE_SENT);
     }
