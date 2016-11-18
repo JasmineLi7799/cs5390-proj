@@ -9,7 +9,9 @@ import java.io.IOException;
 import java.lang.Thread;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.util.Scanner;
+import java.nio.charset.StandardCharsets;
 
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -17,8 +19,6 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-
-import java.io.ByteArrayOutputStream;
 
 
 /* ClientThread implements a listener thread that accepts protocol
@@ -94,27 +94,12 @@ public final class ClientThread extends Thread {
         Console.debug("Spun new client listener thread for "
                       + _clientAddr.getHostAddress() + ":" + _clientPort + ".");
 
-        // Wait for a good HELLO packet.
-        while (!Thread.interrupted()) {
-            try {
-                if (this.getHello()) break;
-            } catch (InterruptedException e) {
+        try {
+            if (!this.doHandshake()) {
                 this.exitCleanup();
                 return;
             }
-        }
-
-        // Try to send CHALLENGE
-        if (!this.sendChallenge()) {
-            this.exitCleanup();
-            return;
-        }
-
-        // TODO: rest of handshake
-        try {
-            Thread.sleep(5000);
         } catch (InterruptedException e) {
-            // break;
         }
 
         this.exitCleanup();
@@ -140,32 +125,89 @@ public final class ClientThread extends Thread {
     // Protocol message parsing
     // =========================================================================
 
-    /* Validates HELLO messages.
+    /* Fetches and processess UDP datagrams from the work queue until
+     * the handshake is complete.
      *
-     * @return True if a valid HELLO message was received.
+     * @return False if a non-continuable error has occurred (ex:
+     * broken WelcomeSocket).
      */
-    private boolean getHello() throws InterruptedException {
-        // Fetch the next datagram from the work queue.
-        DatagramPacket dgram = this.udpTake();
+    private boolean doHandshake() throws InterruptedException {
+        while (!Thread.interrupted()) {
+            DatagramPacket dgram;
+            // Fetch the next datagram from the work queue.
+            dgram = this.udpTake();
 
-        // Set up a scanner to parse the datagram.
-        Scanner scan = new Scanner(new ByteArrayInputStream(
-            dgram.getData(), 0, dgram.getLength()));
-        if (scan == null) {
-            return false;
+            // Set up a scanner to parse the datagram.
+            Scanner msg = new Scanner(new ByteArrayInputStream(
+                dgram.getData(), 0, dgram.getLength()));
+            if (!msg.hasNext()) {
+                Console.warn("Received empty datagram (src="
+                            + _clientAddr.getHostAddress()
+                            + ":" + _clientPort + ")");
+                continue;
+            }
+
+            // Try to handle the message.
+            if (!this.handle(msg)) {
+                return false;
+            }
+
+            // Handshake is done when the client reaches the
+            // authenticated state.
+            if (_client != null
+                && _client.state() == Client.State.AUTHENTICATED) {
+                break;
+            }
         }
+        return true;
+    }
 
-        // Is it a HELLO packet for a new client connection?
-        if (scan.hasNext("HELLO")) {
-            scan.next();
-        } else {
-            return false;
+    /* Parses the protocol message and takes an appropriate action
+     * based on the message and the Client state.
+     *
+     * @param msg A Scanner object encapsulating the message.
+     *
+     * @return False if a non-continuable error has occurred (ex:
+     * broken WelcomeSocket).
+     */
+    private boolean handle(Scanner msg) throws InterruptedException {
+        switch (msg.next()) {
+        case "HELLO":
+            if (this.getHello(msg)) {
+                try {
+                    this.sendChallenge();
+                } catch (IOException e) {
+                    Console.error("In listener thread for client "
+                                    + _client.id()
+                                    + ", while sending CHALLENGE: "
+                                    + e);
+                    return false;
+                }
+
+                // TODO: finish handshake.
+                _client.setState(Client.State.AUTHENTICATED);
+                Thread.sleep(5000);
+            }
+            break;
+        default:
+            Console.warn("Received unrecognized message (src="
+                        + _clientAddr.getHostAddress()
+                        + ":" + _clientPort + ")");
         }
+        return true;
+    }
 
+    /* Validates and processess HELLO messages.
+     *
+     * @param msg Scanner object encapsulating the message.
+     *
+     * @return True if a valid HELLO was received.
+     */
+    private boolean getHello(Scanner msg) throws InterruptedException {
         // Validate the format of the clientId...
         int clientId;
-        if (scan.hasNextInt()) {
-            clientId = scan.nextInt();
+        if (msg.hasNextInt()) {
+            clientId = msg.nextInt();
         } else {
             Console.warn("Received malformed HELLO (src="
                          + _clientAddr.getHostAddress()
@@ -182,20 +224,40 @@ public final class ClientThread extends Thread {
             return false;
         }
 
-        // All is well. Set the _client for this thread.
+        // Client is valid. Set the _client for this thread.
         _client = client;
+
+        // TODO: It's not really clear what we should do in this case
+        // since the protocol doesn't define a way to inform a client
+        // that the server thinks they are already connected.
+        //
+        // Resetting the client state seems like a reasonable thing to do
+        // at first glance, but the client isn't authenticated yet.
+        // Meaning, anyone could spoof a HELLO to blow clients offline.
+        //
+        // In any case, resetting the client state could get messy.
+        // For now, let's defer until we have working chat, etc. Right
+        // now we don't even know what we'll have to work with.
+
+        // Ignore duplicate HELLO.
+        if (_client.state() != Client.State.START) {
+            Console.warn( "Received duplicate HELLO from client: " + clientId
+                        + " (src=" + _clientAddr.getHostAddress()
+                        + ":" + _clientPort + ")");
+            return false;
+        }
+
         Console.info("Received HELLO from client: " + clientId
                      + " (src=" + _clientAddr.getHostAddress()
                      + ":" + _clientPort + ")");
 
+        _client.setState(Client.State.HELLO_RECV);
         return true;
     }
 
-    /* Generates a CHALLENGE message.
-     *
-     * @return True if CHALLENGE was succesfully sent.
-     */
-    private boolean sendChallenge() {
+    /* Generates a CHALLENGE message. */
+    private void sendChallenge()
+        throws InterruptedException, IOException {
         // Generate secure random 32-bit value.
         byte[] rand = new byte[4];
         Cryptor.nextBytes(rand);
@@ -203,28 +265,17 @@ public final class ClientThread extends Thread {
         // Construct the challenge packet payload.
         ByteArrayOutputStream challengeStream
             = new ByteArrayOutputStream();
-        try {
-            challengeStream.write("CHALLENGE".getBytes("UTF-8"));
-            challengeStream.write(rand);
-        } catch (IOException e) {
-            // This exception shouldn't actually be possible.
-            return false;
-        }
+        challengeStream.write("CHALLENGE ".getBytes(
+            StandardCharsets.UTF_8));
+        challengeStream.write(rand);
         byte[] challenge = challengeStream.toByteArray();
 
         // Send the challenge
-        try {
-            Console.debug("Sending CHALLENGE to client "
-                          + _client.id() + ".");
-            _welcomeSock.send(challenge, _clientAddr, _clientPort);
-        } catch (IOException e) {
-            Console.error("In listener thread for client "
-                          + _client.id()
-                          + ", while sending CHALLENGE: "
-                          + e);
-            return false;
-        }
-        return true;
+        Console.debug("Sending CHALLENGE to client "
+                        + _client.id() + ".");
+        _welcomeSock.send(challenge, _clientAddr, _clientPort);
+
+        _client.setState(Client.State.CHALLENGE_SENT);
     }
 
     // =========================================================================

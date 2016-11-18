@@ -27,9 +27,9 @@ public final class Client {
     private Semaphore _stateLock;
     public static enum State {
         START,
-        HELLO_SENT,
-        CHALLENGE_RECV,
-        RESPONSE_SENT,
+        HELLO_RECV,
+        CHALLENGE_SENT,
+        RESPONSE_RECV,
         AUTHENTICATED,
         REGISTERED
         // ...
@@ -45,6 +45,23 @@ public final class Client {
     private ClientSocket _socket;
 
     private ChatSession _chat;
+
+    // =========================================================================
+    // Constructor
+    // =========================================================================
+
+    /* Creates a Client in the START state.
+     *
+     * @param id Client ID
+     * @param k Private key used for authentication and
+     * encryption.
+     */
+    public Client(int id, String k) {
+        _id = id;
+        _privateKey = k;
+        _stateLock = new Semaphore(1);
+        _state = Client.State.START;
+    }
 
     // =========================================================================
     // Accessors/Mutators
@@ -67,19 +84,4 @@ public final class Client {
         _stateLock.release();
     }
 
-
-    // =========================================================================
-    // Constructor
-    // =========================================================================
-
-    /* Creates a Client in the START state.
-     *
-     * @param id Client ID
-     * @param k Private key used for authentication and
-     * encryption.
-     */
-    public Client(int id, String k) {
-        _id = id;
-        _privateKey = k;
-    }
 }
