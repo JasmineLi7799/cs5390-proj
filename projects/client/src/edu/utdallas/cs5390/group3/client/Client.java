@@ -22,7 +22,7 @@ public final class Client {
     private State _state;
     private Semaphore _stateLock;
     public static enum State {
-        START,
+        OFFLINE,
         HELLO_SENT,
         CHALLENGE_RECV,
         RESPONSE_SENT,
@@ -35,7 +35,7 @@ public final class Client {
     // Constructor
     // =========================================================================
 
-    /* Creates a Client in the START state.
+    /* Creates a Client in the OFFLINE state.
      *
      * @param cfg Client configuration object.
      */
@@ -44,7 +44,7 @@ public final class Client {
         _id = this.config.clientId();
         _privateKey = this.config.privateKey();
         _stateLock = new Semaphore(1);
-        _state = State.START;
+        _state = State.OFFLINE;
     }
 
     // =========================================================================

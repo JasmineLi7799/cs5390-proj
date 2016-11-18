@@ -73,23 +73,47 @@ public final class HandshakeThread extends Thread {
             return;
         }
 
-        byte[] rand;
-        try {
-            rand = this.getChallenge();
-        } catch (IOException e) {
-            Console.fatal("While waiting for CHALLENGE caught: " + e);
-            return;
-        } catch (InterruptedException e) {
-            return;
-        }
+        while (!Thread.interrupted()) {
+            try {
+                // At the start of this loop we are HELLO_SENT.
+                // we demote to OFFLINE on AUTH_FAIL, or
+                // promote to AUTHENTICATED on HELLO_SENT.
+                // Either way, we're done. If auth fails, we'll
+                // inform the user and they can try logging in again.
+                if (_client.state() == Client.State.AUTHENTICATED ||
+                    _client.state() == Client.State.OFFLINE) {
+                    break;
+                }
 
-        try {
-            this.sendResponse(rand);
-        } catch (IOException e) {
-            Console.fatal("While sending RESPONSE caught: " + e);
-            return;
-        } catch (InterruptedException e) {
-            return;
+                DatagramPacket dgram = _handshakeSock.receive();
+                if (dgram.getLength() == 0) {
+                    Console.warn("Received unknown message.");
+                    continue;
+                }
+                Scanner msg = new Scanner(new ByteArrayInputStream(
+                    dgram.getData(), 0, dgram.getLength()));
+                if (!msg.hasNext()) {
+                    Console.warn("Received unknown message.");
+                    continue;
+                }
+
+                switch (msg.next()) {
+                case "CHALLENGE":
+                    this.handleChallenge(dgram);
+                    break;
+                case "AUTH_SUCCESS":
+                    this.handleAuthSuccess();
+                    break;
+                case "AUTH_FAIL":
+                    this.handleAuthFail();
+                    break;
+                }
+            } catch (InterruptedException e) {
+                break;
+            } catch (IOException e) {
+                Console.fatal("IOException in HandshakeThread: " + e);
+                break;
+            }
         }
 
         // TODO: finish handshake.
@@ -106,45 +130,36 @@ public final class HandshakeThread extends Thread {
         _client.setState(Client.State.HELLO_SENT);
     }
 
-    /* Repeatedly tries to get a CHALLENGE response from the workequeue
-     * until successful.
+    /* Parses and validates CHALLENGE datagram.
      *
-     * @return The "rand" value of the CHALLENGE
+     * @param dgram The CHALLENGE datagram to process.
      */
-    private byte[] getChallenge() throws InterruptedException, IOException {
-        while (!Thread.interrupted()) {
-            DatagramPacket dgram = _handshakeSock.receive();
+    private void handleChallenge(DatagramPacket dgram)
+        throws InterruptedException, IOException {
 
-            if (dgram.getLength() == 0) {
-                Console.warn("Received empty datagram from server.");
-                continue;
-            }
-
-            Scanner msg = new Scanner(new ByteArrayInputStream(
-                dgram.getData(), 0, dgram.getLength()));
-            if (!msg.hasNext("CHALLENGE")) {
-                Console.warn("Received unexpected reply.");
-                continue;
-            }
-            msg.next();
-
-            if (!msg.hasNext()) {
-                Console.warn("Received truncated CHALLENGE.");
-                continue;
-            }
-
-            String randString = msg.next();
-            if (msg.hasNext()) {
-                Console.warn("Receieve CHALLENGE with extra bytes.");
-            }
-            byte[] rand = DatatypeConverter.parseHexBinary(randString);
-
-            _client.setState(Client.State.CHALLENGE_RECV);
-            Console.info("Received CHALLENGE from server...");
-            Console.debug("rand = " + randString);
-            return rand;
+        if (_client.state() != Client.State.HELLO_SENT) {
+            Console.warn("Receieved CHALLENGE in invalid state.");
+            return;
         }
-        throw new InterruptedException();
+
+        Scanner msg = new Scanner(new ByteArrayInputStream(
+            dgram.getData(), 0, dgram.getLength()));
+        msg.next();
+
+        if (!msg.hasNext()) {
+            Console.warn("Received truncated CHALLENGE.");
+            return;
+        }
+
+        String randString = msg.next();
+        if (msg.hasNext()) {
+            Console.warn("Receieve CHALLENGE with extra bytes.");
+        }
+        byte[] rand = DatatypeConverter.parseHexBinary(randString);
+
+        Console.info("Received CHALLENGE from server...");
+        Console.debug("rand = " + randString);
+        sendResponse(rand);
     }
 
     /* Generates and sends the challenge RESPONSE
@@ -155,13 +170,9 @@ public final class HandshakeThread extends Thread {
         throws InterruptedException, IOException {
 
         // Generate the res value.
-        ByteArrayOutputStream hashInput
-            = new ByteArrayOutputStream();
-        hashInput.write(
-            _client.privateKey().getBytes(StandardCharsets.UTF_8));
-        hashInput.write(rand);
-        byte[] resBytes = Cryptor.hash1(hashInput.toByteArray());
-        hashInput.close();
+        byte[] resBytes = Cryptor.hash1(
+            _client.privateKey(),
+            rand);
         String res = DatatypeConverter.printHexBinary(resBytes);
 
         String payload = String.format(
@@ -175,5 +186,22 @@ public final class HandshakeThread extends Thread {
         _handshakeSock.send(payload);
 
         _client.setState(Client.State.RESPONSE_SENT);
+    }
+
+    private void handleAuthSuccess() throws InterruptedException {
+        if (_client.state() != Client.State.RESPONSE_SENT) {
+            Console.warn("Received AUTH_SUCCESS in invalid state.");
+        }
+        Console.info("Authenticated.");
+        _client.setState(Client.State.AUTHENTICATED);
+    }
+
+    private void handleAuthFail() throws InterruptedException {
+        if (_client.state() != Client.State.RESPONSE_SENT) {
+            Console.warn("Received AUTH_FAIL in invalid state.");
+        }
+        Console.info("Authentication failed. Check 'user_id' and "
+                     + "'private_key' in the config file and try again.");
+        _client.setState(Client.State.OFFLINE);
     }
 }

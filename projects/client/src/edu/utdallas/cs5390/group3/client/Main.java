@@ -61,14 +61,14 @@ public final class Main {
 
             // LOG ON command
             else if (command.matches("(?i)^log on")) {
-                // valid only from START state
+                // valid only from OFFLINE state
                 Client.State state;
                 try {
                     state = _client.state();
                 } catch (InterruptedException e) {
                     break;
                 }
-                if (state != Client.State.START) {
+                if (state != Client.State.OFFLINE) {
                     Console.error("You are already logged on, or a "
                                   + "login is already in progress");
                     continue;
