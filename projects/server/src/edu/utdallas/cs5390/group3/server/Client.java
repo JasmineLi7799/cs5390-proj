@@ -5,24 +5,79 @@ import edu.utdallas.cs5390.group3.core.Cryptor;
 import java.lang.String;
 import java.net.InetAddress;
 
-public final class Client {
+import java.util.concurrent.Semaphore;
 
+/* The Client class stores client information and represents the
+ * client as a state machine that changes in response to inputs from
+ * its ClientThread.
+ *
+ * The Client's state also controls whether and how other
+ * ClientThreads are permitted to interact with the Client.  For
+ * instance, when Client B attempts to send a message to Client A,
+ * Client B's ClientThread will check whether Client A is in a valid
+ * state to receive the message.
+ */
+public final class Client {
+    // Basic client info.
     private int _id;
     private String _privateKey;
-    private ClientConnection _connection;
+
+    // Client state and guard semaphore.
+    private State _state;
+    private Semaphore _stateLock;
+    public static enum State {
+        START,
+        HELLO_SENT,
+        CHALLENGE_RECV,
+        RESPONSE_SENT,
+        AUTHENTICATED,
+        REGISTERED
+        // ...
+    }
+
+    // The TCP socket associated with this Client when it has reached
+    // the REGISTERED state. It is owned by the Client rather than its
+    // ClientThread because multiple threads need access to the socket.
+    //
+    // For instance, suppose Client A sends a CHAT protocol message.
+    // Client A's ClientThread will receive the message and relay
+    // it to Client B's socket.
+    private ClientSocket _socket;
+
     private ChatSession _chat;
 
+    // =========================================================================
+    // Accessors/Mutators
+    // =========================================================================
+
     public int id() { return _id; }
-    public ClientConnection connection() { return _connection; }
+    public ClientSocket socket() { return _socket; }
 
-    /*
-    public boolean isRegistered() {}
-    public boolean hasChatSession() {}
-    public ClientConnection register(InetAddress addres, String cryptKey) {}
-    public String authenticate(String response) {}
-    public void startChat(int chatId, Client partner) {}
-    */
+    public State state() throws InterruptedException {
+        State retVal;
+        _stateLock.acquire();
+        retVal = _state;
+        _stateLock.release();
+        return retVal;
+    }
 
+    public void setState(State newState) throws InterruptedException {
+        _stateLock.acquire();
+        _state = newState;
+        _stateLock.release();
+    }
+
+
+    // =========================================================================
+    // Constructor
+    // =========================================================================
+
+    /* Creates a Client in the START state.
+     *
+     * @param id Client ID
+     * @param k Private key used for authentication and
+     * encryption.
+     */
     public Client(int id, String k) {
         _id = id;
         _privateKey = k;
