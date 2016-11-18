@@ -68,15 +68,4 @@ public final class Client {
         _stateLock.release();
     }
 
-    // =========================================================================
-    // Protocol messages
-    // =========================================================================
-
-    /* Generates the HELLO message payload.
-     *
-     * @return the HELLO message.
-     */
-    public String hello() {
-        return "HELLO " + _id;
-    }
 }
