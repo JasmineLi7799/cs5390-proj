@@ -174,7 +174,7 @@ public final class ClientThread extends Thread {
         }
 
         // Then validate the content of the clientId...
-        Client client = _server.findClientById(clientId);
+        Client client = _server.findClient(clientId);
         if (client == null) {
             Console.warn( "Received HELLO from unknown client: " + clientId
                          + " (src=" + _clientAddr.getHostAddress()

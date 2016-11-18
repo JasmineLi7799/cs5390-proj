@@ -168,7 +168,7 @@ public final class Server {
      *
      * @throws NullPointerException Thrown if no match was found.
      */
-    public Client findClientById(int id) {
+    public Client findClient(int id) {
         Client client;
         try {
             client = _clientDB.get(id);
