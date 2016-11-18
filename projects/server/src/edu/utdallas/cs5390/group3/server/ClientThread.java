@@ -10,10 +10,11 @@ import java.lang.Thread;
 
 import java.util.Arrays;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.util.Scanner;
-import java.nio.charset.StandardCharsets;
 import java.lang.StringBuilder;
+// There's no XML here. We just need this to convert hex strings to byte arrays
+// without reinventing the wheel.
+import javax.xml.bind.DatatypeConverter;
 
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -21,10 +22,6 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-
-// There's no XML here. We just need this to convert hex strings to byte arrays
-// without reinventing the wheel.
-import javax.xml.bind.DatatypeConverter;
 
 /* ClientThread implements a listener thread that accepts protocol
  * messages from the client over UDP during the handshake, and subsequently
