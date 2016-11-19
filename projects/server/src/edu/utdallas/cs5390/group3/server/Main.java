@@ -9,8 +9,6 @@ import java.lang.Thread;
 import java.lang.IllegalStateException;
 import java.util.NoSuchElementException;
 
-import java.util.Scanner;
-
 /* The Main class implements the server's interactive console and
  * creates the Server object.
  */
@@ -51,7 +49,7 @@ public final class Main {
             }
 
             try {
-                String command = Console.readLine();
+                String command = Console.nextLine();
                 if (command.matches("(?i:)^(quit|exit)$")) {
                     break;
                 } else {
@@ -74,6 +72,7 @@ public final class Main {
         // will happily continue running without the main thread
         // (interactive console).
         server.stop();
+        Console.close();
     }
 
     /* Whenever and wherever the program exits, we should try to call

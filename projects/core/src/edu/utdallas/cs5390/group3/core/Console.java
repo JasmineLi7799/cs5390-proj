@@ -6,18 +6,19 @@ import java.util.Scanner;
 public final class Console {
     private static boolean debugMode = false;
     private static Semaphore _writeLock;
-    private static Scanner in = new Scanner(System.in);
+    private static Scanner _in;
 
     static {
         _writeLock = new Semaphore(1);
+        _in = new Scanner(System.in);
     }
 
-    public static String readLine(){
-        return in.nextLine();
+    public static void close() {
+        _in.close();
     }
 
-    public static void closeReader(){
-        in.close();
+    public static String nextLine() {
+        return _in.nextLine();
     }
 
     private static void write(String prefix, String message) {
@@ -56,7 +57,7 @@ public final class Console {
     public static void fatal(String message) {
         write("[FATAL]", message);
     }
-    
+
     public static void enterDebugMode(){
         debugMode = true;
         debug("Entering Debug Mode");

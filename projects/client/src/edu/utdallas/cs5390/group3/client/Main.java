@@ -44,7 +44,7 @@ public final class Main {
         while (!Thread.interrupted()) {
             String command;
             try {
-                command = Console.readLine();
+                command = Console.nextLine();
             } catch (NoSuchElementException |
                      IllegalStateException e) {
                 Console.fatal("Console caught input exception: " + e);
@@ -90,6 +90,7 @@ public final class Main {
 
         // Kill all threads in the "client" group.
         _client.threadGroup().interrupt();
+        Console.close();
     }
 
     private static void registerShutdownHook() {
