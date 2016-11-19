@@ -7,6 +7,8 @@ import java.net.InetAddress;
 
 import java.util.concurrent.Semaphore;
 
+import javax.crypto.spec.SecretKeySpec;
+
 /* The Client class stores client information and represents the
  * client as a state machine that changes in response to inputs from
  * its ClientThread.
@@ -21,6 +23,7 @@ public final class Client {
     // Basic client info.
     private int _id;
     private String _privateKey;
+    private SecretKeySpec _cryptKey;
 
     // Client state and guard semaphore.
     private State _state;
@@ -69,6 +72,7 @@ public final class Client {
 
     public int id() { return _id; }
     public String privateKey() { return _privateKey; }
+    public SecretKeySpec cryptKey() { return _cryptKey; }
     public ClientSocket socket() { return _socket; }
 
     public State state() throws InterruptedException {
@@ -85,4 +89,7 @@ public final class Client {
         _stateLock.release();
     }
 
+    public void setCryptKey(byte[] key) {
+        _cryptKey = new SecretKeySpec(key, "AES");
+    }
 }

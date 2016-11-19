@@ -90,6 +90,26 @@ public final class HandshakeThread extends Thread {
                     Console.warn("Received unknown message.");
                     continue;
                 }
+
+                // This is an odd predicament. From the RESPONSE_SENT
+                // state, we don't know whether the next reply from the
+                // server will be encrypted or not since this depends on
+                // whether authentication succeeded or failed. The
+                // best we can do is guess heuristically based on message
+                // length.
+                if (_client.state() == Client.State.RESPONSE_SENT
+                    && dgram.getLength() == 16) {
+                    // replace the datagram data with its decrypted
+                    // payload.
+                    try {
+                        Cryptor.decrypt(_client.cryptKey(), dgram);
+                    } catch (Exception e) {
+                        Console.fatal("Decryption failure: " + e);
+                        break;
+                    }
+                }
+
+                // Peek at the protocol message type.
                 Scanner msg = new Scanner(new ByteArrayInputStream(
                     dgram.getData(), 0, dgram.getLength()));
                 if (!msg.hasNext()) {
@@ -97,6 +117,7 @@ public final class HandshakeThread extends Thread {
                     continue;
                 }
 
+                // And dispatch accordingly.
                 switch (msg.next()) {
                 case "CHALLENGE":
                     this.handleChallenge(dgram);
@@ -107,6 +128,8 @@ public final class HandshakeThread extends Thread {
                 case "AUTH_FAIL":
                     this.handleAuthFail();
                     break;
+                default:
+                    Console.warn("Received unknown message.");
                 }
             } catch (InterruptedException e) {
                 break;
@@ -156,6 +179,10 @@ public final class HandshakeThread extends Thread {
             Console.warn("Receieve CHALLENGE with extra bytes.");
         }
         byte[] rand = DatatypeConverter.parseHexBinary(randString);
+        byte[] ckey = Cryptor.hash2(_client.privateKey(), rand);
+        String ckeyString = DatatypeConverter.printHexBinary(ckey);
+        Console.debug("Setting cryptkey: " + ckeyString);
+        _client.setCryptKey(ckey);
 
         Console.info("Received CHALLENGE from server...");
         Console.debug("rand = " + randString);

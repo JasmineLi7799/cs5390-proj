@@ -234,6 +234,12 @@ public final class ClientThread extends Thread {
         Console.debug(tag("Sending CHALLENGE"));
         Console.debug(tag("Content = " + payload));
 
+        // Set the encryption key for post-auth communication.
+        byte[] ckey = Cryptor.hash2(_client.privateKey(), randBytes);
+        String ckeyString = DatatypeConverter.printHexBinary(ckey);
+        Console.debug("Setting cryptkey: " + ckeyString);
+        _client.setCryptKey(ckey);
+
         _xres = Cryptor.hash1(_client.privateKey(), randBytes);
         _welcomeSock.send(payload, _clientAddr, _clientPort);
     }
@@ -281,7 +287,15 @@ public final class ClientThread extends Thread {
 
         byte[] res = DatatypeConverter.parseHexBinary(resString);
         if (Arrays.equals(res, _xres)) {
-            _welcomeSock.send("AUTH_SUCCESS", _clientAddr, _clientPort);
+            try {
+                byte[] authMsg = Cryptor.encrypt(
+                    _client.cryptKey(),
+                    "AUTH_SUCCESS");
+                _welcomeSock.send(authMsg, _clientAddr, _clientPort);
+            } catch (Exception e) {
+                Console.error(tag("Encryption failure: " + e));
+                return;
+            }
             _client.setState(Client.State.AUTHENTICATED);
             Console.info(tag("AUTH_SUCCESS"));
         } else {

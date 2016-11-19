@@ -3,8 +3,9 @@ package edu.utdallas.cs5390.group3.client;
 import java.lang.String;
 
 import java.util.concurrent.Semaphore;
-
 import java.lang.InterruptedException;
+
+import javax.crypto.spec.SecretKeySpec;
 
 /* The Client class stores client information and represents the
  * client as a state machine that changes in response to inputs from
@@ -14,6 +15,7 @@ public final class Client {
     // Basic client info.
     private int _id;
     private String _privateKey;
+    private SecretKeySpec _cryptKey;
 
     // Configuration node
     public Config config;
@@ -53,6 +55,7 @@ public final class Client {
 
     public int id() { return _id; }
     public String privateKey() { return _privateKey; }
+    public SecretKeySpec cryptKey() { return _cryptKey; }
 
     public State state() throws InterruptedException {
         State retVal;
@@ -68,4 +71,7 @@ public final class Client {
         _stateLock.release();
     }
 
+    public void setCryptKey(byte[] key) {
+        _cryptKey = new SecretKeySpec(key, "AES");
+    }
 }
