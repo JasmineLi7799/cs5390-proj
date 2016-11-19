@@ -2,7 +2,6 @@ package edu.utdallas.cs5390.group3.client;
 
 import java.lang.ThreadGroup;
 
-import java.util.concurrent.Semaphore;
 import java.lang.InterruptedException;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -25,7 +24,6 @@ public final class Client {
 
     // Client state and guard semaphore.
     private State _state;
-    private Semaphore _stateLock;
     public static enum State {
         OFFLINE,
         HELLO_SENT,
@@ -48,7 +46,6 @@ public final class Client {
         this.config = cfg;
         _id = this.config.clientId();
         _privateKey = this.config.privateKey();
-        _stateLock = new Semaphore(1);
         _state = State.OFFLINE;
         _threadGroup = new ThreadGroup("client");
     }
@@ -68,16 +65,16 @@ public final class Client {
 
     public State state() throws InterruptedException {
         State retVal;
-        _stateLock.acquire();
-        retVal = _state;
-        _stateLock.release();
+        synchronized(_state) {
+            retVal = _state;
+        }
         return retVal;
     }
 
     public void setState(State newState) throws InterruptedException {
-        _stateLock.acquire();
-        _state = newState;
-        _stateLock.release();
+        synchronized(_state) {
+            _state = newState;
+        }
     }
 
     public void setCryptKey(byte[] key) {

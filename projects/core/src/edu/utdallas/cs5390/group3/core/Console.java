@@ -5,11 +5,9 @@ import java.util.Scanner;
 
 public final class Console {
     private static boolean debugMode = false;
-    private static Semaphore _writeLock;
     private static Scanner _in;
 
     static {
-        _writeLock = new Semaphore(1);
         _in = new Scanner(System.in);
     }
 
@@ -22,13 +20,8 @@ public final class Console {
     }
 
     private static void write(String prefix, String message) {
-        try {
-            _writeLock.acquire();
+        synchronized(System.out) {
             System.out.println(prefix + " " + message);
-            _writeLock.release();
-        } catch (InterruptedException e) {
-            /* There's really nothing we can reasonably do about this
-               but to ignore it. */
         }
     }
 

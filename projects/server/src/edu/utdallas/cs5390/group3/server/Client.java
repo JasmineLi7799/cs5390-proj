@@ -5,8 +5,6 @@ import edu.utdallas.cs5390.group3.core.Cryptor;
 import java.lang.String;
 import java.net.InetAddress;
 
-import java.util.concurrent.Semaphore;
-
 import javax.crypto.spec.SecretKeySpec;
 
 /* The Client class stores client information and represents the
@@ -25,9 +23,7 @@ public final class Client {
     private String _privateKey;
     private SecretKeySpec _cryptKey;
 
-    // Client state and guard semaphore.
     private State _state;
-    private Semaphore _stateLock;
     public static enum State {
         OFFLINE,
         HELLO_RECV,
@@ -62,7 +58,6 @@ public final class Client {
     public Client(int id, String k) {
         _id = id;
         _privateKey = k;
-        _stateLock = new Semaphore(1);
         _state = Client.State.OFFLINE;
     }
 
@@ -77,16 +72,16 @@ public final class Client {
 
     public State state() throws InterruptedException {
         State retVal;
-        _stateLock.acquire();
-        retVal = _state;
-        _stateLock.release();
+        synchronized(_state) {
+            retVal = _state;
+        }
         return retVal;
     }
 
     public void setState(State newState) throws InterruptedException {
-        _stateLock.acquire();
-        _state = newState;
-        _stateLock.release();
+        synchronized(_state) {
+            _state = newState;
+        }
     }
 
     public void setCryptKey(byte[] key) {
