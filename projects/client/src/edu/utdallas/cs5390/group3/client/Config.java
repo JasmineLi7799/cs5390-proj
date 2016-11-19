@@ -25,6 +25,8 @@ public final class Config {
     private static final String DEFAULT_SERVER_ADDR = "127.0.0.1";
     private static final int DEFAULT_SERVER_PORT = 9876;
     private static final boolean DEFAULT_DEBUG_MODE = false;
+    // 3 seconds
+    private static final int DEFAULT_TIMEOUT_INTERVAL = 3000;
 
     // Bookkeeping
     private String _configFileName;
@@ -35,6 +37,7 @@ public final class Config {
     private boolean _debug;
     private int _clientId;
     private String _privateKey;
+    private int _timeoutInterval;
 
     // =========================================================================
     // Constructor
@@ -98,6 +101,10 @@ public final class Config {
         return _privateKey;
     }
 
+    public int timeoutInterval() {
+        return _timeoutInterval;
+    }
+
     // =========================================================================
     // Initialization
     // =========================================================================
@@ -144,6 +151,7 @@ public final class Config {
         _debug = this.validateDebug(props);
         _clientId = this.validateClientId(props);
         _privateKey = this.validatePrivateKey(props);
+        _timeoutInterval = this.validateTimeoutInterval(props);
     }
 
     /* Validates 'server_addr' property.
@@ -304,4 +312,31 @@ public final class Config {
         return pkProp;
     }
 
+    /* Validates 'timeout_interval' property
+     *
+     * @return Validated timeout interval.
+     */
+    private int validateTimeoutInterval(final Properties props)
+        throws NullPointerException {
+
+        String timeoutIntervalProp = props.getProperty("timeout_interval");
+
+        // Default value if ommitted.
+        if (timeoutIntervalProp == null) {
+            return Config.DEFAULT_TIMEOUT_INTERVAL;
+        }
+
+        // Check format.
+        if (!timeoutIntervalProp.matches("^[0-9]+$")) {
+            Console.fatal("Malformed 'timeout_interval' property in "
+                          + "'" + _configFileName + "': '"
+                          + timeoutIntervalProp
+                          + "' (must be non-negative integer)");
+            throw new NullPointerException();
+        }
+        int timeoutInterval = Integer.parseInt(timeoutIntervalProp);
+
+        // Validation succeeded.
+        return timeoutInterval;
+    }
 }

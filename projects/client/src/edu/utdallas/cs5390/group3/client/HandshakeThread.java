@@ -24,9 +24,6 @@ import java.nio.charset.StandardCharsets;
 import javax.xml.bind.DatatypeConverter;
 
 public final class HandshakeThread extends Thread {
-    // Time to wait for server responses before giving up.
-    private static final int TIMEOUT_INTERVAL = 3000;
-
     private static HandshakeSocket _handshakeSock;
 
     private Client _client;
@@ -47,7 +44,7 @@ public final class HandshakeThread extends Thread {
             new InetSocketAddress(_client.config.serverAddr(),
                                   _client.config.serverPort());
         _handshakeSock = new HandshakeSocket(serverSockAddr);
-        _handshakeSock.setSoTimeout(TIMEOUT_INTERVAL);
+        _handshakeSock.setSoTimeout(_client.config.timeoutInterval());
     }
 
     // =========================================================================
