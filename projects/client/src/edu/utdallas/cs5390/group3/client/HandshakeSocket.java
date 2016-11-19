@@ -10,6 +10,8 @@ import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.io.IOException;
 
+import java.nio.charset.StandardCharsets;
+
 public final class HandshakeSocket {
     private static final int RECV_BUF_SIZE = 1024;
 
@@ -24,48 +26,45 @@ public final class HandshakeSocket {
         _serverIP = serverSockAddr.getAddress();
         _serverPort = serverSockAddr.getPort();
         _socket = new DatagramSocket();
-        Console.debug("Opened welcome socket (" + _socket.getLocalPort() + ").");
+        Console.debug("Opened handshake socket ("
+                      + _socket.getLocalPort() + ").");
     }
 
     public void finalize() {
         this.close();
     }
 
+    public void setSoTimeout(int timeout) throws SocketException {
+        _socket.setSoTimeout(timeout);
+    }
+
     public void close() {
-        Console.debug("Welcome socket (" + _socket.getLocalPort() + ")"
-                      + " closed.");
         if (!_socket.isClosed()) {
+            Console.debug("Handshake socket (" + _socket.getLocalPort() + ")"
+                          + " closed.");
             _socket.close();
         }
     }
 
-    public boolean send(String message) {
-        byte[] data = new byte[message.length()];
-        data = message.getBytes();
+    public void send(String message) throws IOException {
+        byte[] data =  message.getBytes(StandardCharsets.UTF_8);
+        this.send(data);
+    }
+
+    public void send(byte[] data) throws IOException {
         DatagramPacket dgram = new DatagramPacket(
             data,
             data.length,
             _serverIP,
             _serverPort
         );
-        try {
-            _socket.send(dgram);
-        } catch (IOException e) {
-            System.out.println("Caught IOException: " + e);
-            return false;
-        }
-        return true;
+        _socket.send(dgram);
     }
 
-    public DatagramPacket receive() {
+    public DatagramPacket receive() throws IOException {
         byte[] buf = new byte[RECV_BUF_SIZE];
         DatagramPacket dgram = new DatagramPacket(buf, RECV_BUF_SIZE);
-        try {
-            _socket.receive(dgram);
-        } catch (IOException e) {
-            Console.error("Welcome socket: caught IOExcpetion: " + e);
-            return null;
-        }
+        _socket.receive(dgram);
         return dgram;
     }
 }

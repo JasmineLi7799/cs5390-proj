@@ -11,32 +11,45 @@ import java.util.NoSuchElementException;
 
 import java.util.Scanner;
 
+/* The Main class implements the server's interactive console and
+ * creates the Server object.
+ */
 public final class Main {
     public static void main(String[] args) throws Exception {
-        Main.registerShutdownHook();
 
+        // Create, configure, and start server
         String configFileName = "server.cfg";
         if(args.length > 0)
             configFileName = args[0];
-        Config cfg = Config.instance();
-        if (!cfg.init(configFileName)) {
-            Console.fatal("Server initialization failed.");
+        Server server = Server.instance();
+        try {
+            server.configure(configFileName);
+        } catch (IllegalStateException | NullPointerException e) {
+            Console.fatal("Could not configure server: "
+                          + e.getMessage());
+            return;
+        }
+        try {
+            server.start();
+        } catch (IllegalStateException e) {
+            Console.fatal("Could not start server: "
+                          + e.getMessage());
             return;
         }
 
-        Server server = Server.instance(cfg);
+        // From here on, if anything causes the process to terminate, we
+        // want to try to stop() the Server as part of the termination.
+        Main.registerShutdownHook();
 
-        server.spinWelcomeThread();
+        // Console input loop
         Console.info("Type 'quit' or 'exit' to terminate (case-insensitive).");
         while (!Thread.interrupted()) {
-            if (!server.welcomeIsAlive()) {
+            // If the WelcomeThread dies, the server is toast.
+            if (!server.isAlive()) {
                 Console.fatal("Welcome thread terminated unexpectedly.");
-                System.exit(-1);
+                break;
             }
-            if (Thread.interrupted()) {
-                Console.fatal("Console thread interrupted.");
-                System.exit(-1);
-            }
+
             try {
                 String command = Console.readLine();
                 if (command.matches("(?i:)^(quit|exit)$")) {
@@ -48,24 +61,31 @@ public final class Main {
             } catch (NoSuchElementException |
                      IllegalStateException e) {
                 Console.fatal("Console caught input exception: " + e);
-                System.exit(-1);
+                break;
             }
         }
-        // Reap all other threads when the main (interactive console)
-        // thread exits. Otherwise the server keeps running, just
-        // without the main thread. Alternatively, we could call
-        // System.exit() since the shutdown hook also calls
-        // server.shutDown().
-        server.shutDown();
+        // If we exited the console input loop due to an interrupt,
+        // let the user know what happened.
+        if (Thread.interrupted()) {
+            Console.fatal("Console thread interrupted.");
+        }
+
+        // If we don't make this call, the other threads of the server
+        // will happily continue running without the main thread
+        // (interactive console).
+        server.stop();
     }
 
+    /* Whenever and wherever the program exits, we should try to call
+     * stop() on the server for a clean exit.
+     */
     private static void registerShutdownHook() {
         Runtime.getRuntime().addShutdownHook(
             new Thread(
                 new Runnable() {
                     @Override
                     public void run() {
-                        Server.instance().shutDown();
+                        Server.instance().stop();
                     }
                 }
             )

@@ -11,31 +11,56 @@ import java.io.IOException;
 import java.lang.InterruptedException;
 import java.net.SocketException;
 
+/* The WelcomeThread serves as a dispatcher for UDP datagrams received
+ * on the WelcomeSocket.
+ */
 public final class WelcomeThread extends Thread {
     private WelcomeSocket _welcomeSock;
-    private Server _server;
 
+    // =========================================================================
+    // Constructor
+    // =========================================================================
+
+    /* Default constructor */
     public WelcomeThread() {
         super(Server.instance().threadGroup(), "welcome");
-        _server = Server.instance();
         _welcomeSock = new WelcomeSocket();
     }
 
-    // For whatever reason, DatagramSocket.receive() does not throw
-    // InterruptedException, so we cannot interrupt the welcome thread
-    // if it happens to be doing this. The "standard" solution to this
-    // is to hook the interrupt() method so that it also closes the
-    // DatagramSocket, which will effectively interrupt the thread by
-    // tossing an immediate SocketException.
+    // =========================================================================
+    // WelcomeThread runtime maintenance
+    // =========================================================================
+
+    /* Interrupts the Welcome Thread.
+     *
+     * DatagramSocket.receive() does not throw InterruptedException.
+     * So, to interrupt the WelcomeThread when it is blocking on this call,
+     * we close the underlying socket, causing an immediate SocketException
+     */
     @Override
     public void interrupt() {
         super.interrupt();
         _welcomeSock.close();
     }
 
+    /* Main loop for the WelcomeSocket.
+     *
+     * UDP is stateless, but the handshake process is not. Thus, we need
+     * to implement our own connection-oriented layer on top of UDP. This
+     * is accomplished by maintaining a map of existing connections keyed
+     * to the source (client) SocketAddress.
+     *
+     * For each incoming UDP datagram, the WelcomeThread checks whether
+     * there is an associated HandshakeThread in the thread map. If so,
+     * the datagram is forwarded to the HandshakeThread's work queue. If not,
+     * The WelcomeThread spins a new HandshakeThread and maps it to the
+     * client's SocketAddress, before forwarding it on.
+     */
     @Override
     public void run() {
-
+        // It may not be possible to open the requested port.
+        // For instance: a port conflict or a non-local
+        // bind_address in the server config file.
         if (!_welcomeSock.open()) {
             return;
         }
@@ -52,25 +77,27 @@ public final class WelcomeThread extends Thread {
             }
 
             // Check if the datagram is associated with an existing
-            // client thread.
+            // HandshakeThread.
             SocketAddress sockAddr = dgram.getSocketAddress();
-            ClientThread cthread =
-                _server.findThreadBySocket(sockAddr);
-            if (cthread == null) {
+            HandshakeThread hsThread =
+                _welcomeSock.findThread(sockAddr);
+
+            if (hsThread == null) {
                 // If not, create one.
-                cthread = new ClientThread(sockAddr, _welcomeSock);
+                hsThread = new HandshakeThread(sockAddr, _welcomeSock);
                 // And add the thread to the map so we know where to
                 // forward future datagrams.
-                _server.mapThread(sockAddr, cthread);
-                cthread.start();
+                _welcomeSock.mapThread(sockAddr, hsThread);
+                hsThread.start();
             }
-            // Forward the datagram to its listener thread.
+
+            // Forward the datagram to its HandshakeThread.
             try {
-                cthread.udpPut(dgram);
+                hsThread.udpPut(dgram);
             } catch (InterruptedException e) {
-                // Not really necessary since we're about to hit the
-                // bottom of the loop anyway, and the loop condition
-                // will break on interrupt.
+                // Unecessary since we're at the bottom of the loop,
+                // anyway, but this "futureproofs" against changes to
+                // the WelcomeThread loop.
                 break;
             }
         }
@@ -80,5 +107,4 @@ public final class WelcomeThread extends Thread {
             _welcomeSock.close();
         }
     }
-
 }

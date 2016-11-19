@@ -7,13 +7,13 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.util.concurrent.Semaphore;
 
-public final class ClientConnection {
+public final class ClientSocket {
 
     private Socket _socket;
     private String _cryptKey;
     private Semaphore _sendLock;
 
-    public ClientConnection(InetAddress addr, String cryptKey) {
+    public ClientSocket(InetAddress addr, String cryptKey) {
         _cryptKey = cryptKey;
         _sendLock = new Semaphore(1);
     }

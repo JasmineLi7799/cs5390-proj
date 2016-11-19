@@ -1,4 +1,4 @@
-package edu.utdallas.cs5390.group3.server;
+package edu.utdallas.cs5390.group3.client;
 
 import edu.utdallas.cs5390.group3.core.Console;
 
@@ -22,24 +22,22 @@ import java.net.UnknownHostException;
  */
 public final class Config {
     // Defaults
-    private static final String DEFAULT_BIND_ADDR = "0.0.0.0";
-    private static final int DEFAULT_BIND_PORT = 9876;
+    private static final String DEFAULT_SERVER_ADDR = "127.0.0.1";
+    private static final int DEFAULT_SERVER_PORT = 9876;
     private static final boolean DEFAULT_DEBUG_MODE = false;
-    private static final int[] DEFAULT_USER_IDS = {};
-    private static final String[] DEFAULT_PRIVATE_KEYS = {};
     // 3 seconds
-    private static final long DEFAULT_TIMEOUT_INTERVAL = 3000L;
+    private static final int DEFAULT_TIMEOUT_INTERVAL = 3000;
 
     // Bookkeeping
     private String _configFileName;
 
     // Properties
-    private InetAddress _bindAddr;
-    private int _bindPort;
-    private boolean _debugMode;
-    private int[] _userIDs;
-    private String[] _privateKeys;
-    private long _timeoutInterval;
+    private InetAddress _serverAddr;
+    private int _serverPort;
+    private boolean _debug;
+    private int _clientId;
+    private String _privateKey;
+    private int _timeoutInterval;
 
     // =========================================================================
     // Constructor
@@ -74,35 +72,36 @@ public final class Config {
         // executed before the Config(). In other words, it can't
         // configure itself, so we have to configure it from here
         // instead.
-        if(_debugMode)
+        if(_debug) {
             Console.enterDebugMode();
+        }
     }
 
     // =========================================================================
     // Property Accessors
     // =========================================================================
 
-    public InetAddress bindAddr() {
-        return _bindAddr;
+    public InetAddress serverAddr() {
+        return _serverAddr;
     }
 
-    public int bindPort() {
-        return _bindPort;
+    public int serverPort() {
+        return _serverPort;
     }
 
-    public boolean debugMode() {
-        return _debugMode;
+    public boolean debug() {
+        return _debug;
     }
 
-    public int[] userIDs() {
-        return _userIDs;
+    public int clientId() {
+        return _clientId;
     }
 
-    public String[] privateKeys() {
-        return _privateKeys;
+    public String privateKey() {
+        return _privateKey;
     }
 
-    public long timeoutInterval() {
+    public int timeoutInterval() {
         return _timeoutInterval;
     }
 
@@ -147,26 +146,31 @@ public final class Config {
      * (fails validation).
      */
     private void validate(Properties props) throws NullPointerException {
-        _bindAddr = this.validateBindAddress(props);
-        _bindPort = this.validateBindPort(props);
-        _debugMode = this.validateDebug(props);
-        _userIDs = this.validateUserIDs(props);
-        _privateKeys = this.validatePrivateKeys(props, _userIDs.length);
+        _serverAddr = this.validateServerAddr(props);
+        _serverPort = this.validateServerPort(props);
+        _debug = this.validateDebug(props);
+        _clientId = this.validateClientId(props);
+        _privateKey = this.validatePrivateKey(props);
         _timeoutInterval = this.validateTimeoutInterval(props);
     }
 
-    /* Validates 'bind_addr' property.
+    /* Validates 'server_addr' property.
+     *
+     * Rules:
+     *   Can be ommited (has default)
+     *   Can be '*' (will be translated to 0.0.0.0)
+     *   Must be resolvable.
      *
      * @return Validated InetAddress object.
      */
-    private InetAddress validateBindAddress(final Properties props)
+    private InetAddress validateServerAddr(final Properties props)
         throws NullPointerException {
 
-        String serverAddrProp = props.getProperty("bind_addr");
+        String serverAddrProp = props.getProperty("server_addr");
 
         // default value if ommitted.
         if (serverAddrProp == null) {
-            serverAddrProp = Config.DEFAULT_BIND_ADDR;
+            serverAddrProp = Config.DEFAULT_SERVER_ADDR;
         } else if (serverAddrProp.equals("*")) {
             // translate shorthand '*' -> '0.0.0.0'
             serverAddrProp = "0.0.0.0";
@@ -179,7 +183,7 @@ public final class Config {
         try {
             serverAddr = InetAddress.getByName(serverAddrProp);
         } catch (UnknownHostException e) {
-            Console.fatal("Could not resolve 'bind_addr' property in "
+            Console.fatal("Could not resolve 'server_addr' property in "
                           + "'" + _configFileName + "' to a valid host: "
                           + serverAddrProp);
             throw new NullPointerException();
@@ -189,42 +193,51 @@ public final class Config {
         return serverAddr;
     }
 
-    /* Validates 'bind_port' property
+    /* Validates 'server_port' property.
+     *
+     * Rules:
+     *   Can be omitted (has default)
+     *   Must be integer
+     *   Between 0 and 65535
      *
      * @return Validated port number.
      */
-    private int validateBindPort(final Properties props)
+    private int validateServerPort(final Properties props)
         throws NullPointerException {
 
-        String bindPortProp = props.getProperty("bind_port");
+        String serverPortProp = props.getProperty("server_port");
 
         // Default value if ommitted.
-        if (bindPortProp == null) {
-            return Config.DEFAULT_BIND_PORT;
+        if (serverPortProp == null) {
+            return Config.DEFAULT_SERVER_PORT;
         }
 
         // Check format.
-        if (!bindPortProp.matches("^[0-9]+$")) {
-            Console.fatal("Malformed 'bind_port' property in "
+        if (!serverPortProp.matches("^[0-9]+$")) {
+            Console.fatal("Malformed 'server_port' property in "
                           + "'" + _configFileName + "': '"
-                          + bindPortProp + "' (must be 0-65535)");
+                          + serverPortProp + "' (must be 0-65535)");
             throw new NullPointerException();
         }
 
         // Check bounds.
-        int bindPort = Integer.parseInt(bindPortProp);
-        if (bindPort < 0 || bindPort > 65535) {
-            Console.fatal("Specified 'bind_port' property in "
+        int serverPort = Integer.parseInt(serverPortProp);
+        if (serverPort < 0 || serverPort > 65535) {
+            Console.fatal("Specified 'server_port' property in "
                             + "'" + _configFileName + "' is out-of-range: '"
-                            + bindPort + "' (must be 0-65535)");
+                            + serverPort + "' (must be 0-65535)");
             throw new NullPointerException();
         }
 
         // Validation succeeded.
-        return bindPort;
+        return serverPort;
     }
 
     /* Validate 'debug' property.
+     *
+     * Rules:
+     *   Can be omitted (has default)
+     *   Must be true/false, yes/no, on/off
      *
      * @return Validated debug mode.
      */
@@ -236,77 +249,74 @@ public final class Config {
             return Config.DEFAULT_DEBUG_MODE;
         }
 
-        if (debugProp.equalsIgnoreCase("true"))
+        if (debugProp.matches("(?i)^(true|on|yes)\\s*$"))
             return true;
-        else if (debugProp.equalsIgnoreCase("false"))
+        else if (debugProp.matches("(?i)^(false|off|no)\\s*$"))
             return false;
         else {
             Console.fatal("Specified 'debug' property in "
                             + "'" + _configFileName + "' is invalid: '"
-                            + " Must be 'true' or 'false'");
+                            + " Must be 'true/false', 'yes/no', or 'on/off'");
             throw new NullPointerException();
         }
     }
 
-    private int[] validateUserIDs(final Properties props)
+    /* Validate 'client_id' property.
+     *
+     * Rules:
+     *   Required property (can't omit)
+     *   Must be a non-negative integer
+     *
+     * @return Validated debug mode.
+     */
+    private int validateClientId(final Properties props)
         throws NullPointerException {
 
-        String userProp = props.getProperty("user_ids");
+        String clientIdProp = props.getProperty("client_id");
 
-        // Default value if ommitted.
-        if (userProp == null || userProp.equals("")) {
-            return DEFAULT_USER_IDS;
+        if (clientIdProp == null || clientIdProp.equals("")) {
+            Console.fatal("Missing required property 'client_id' in "
+                          + "'" + _configFileName + "'");
+            throw new NullPointerException();
         }
 
-        String[] userPropArr = userProp.split(",");
-        int[] userIDs = new int[userPropArr.length];
+        if (!clientIdProp.matches("^[0-9]*$")) {
+            Console.fatal("Malformed 'client_id' property in "
+                          + "'" + _configFileName + "': "
+                          + clientIdProp);
+            throw new NullPointerException();
+        }
 
-        for(int i=0; i<userPropArr.length; i++)
-            if (userPropArr[i].matches("^[1-9][0-9]*$")) {
-                userIDs[i] = Integer.parseInt(userPropArr[i]);
-            } else {
-                Console.fatal("Malformed 'user_id' property in "
-                              + "'" + _configFileName + "': "
-                              + userPropArr[i]);
-                throw new NullPointerException();
-            }
-
-        return userIDs;
+        return Integer.parseInt(clientIdProp);
     }
 
-    private String[] validatePrivateKeys(final Properties props, final int userIDsLength)
+    /* Validate 'private_key' property.
+     *
+     * Rules:
+     *   Required property (can't omit)
+     *   Can't be the empty string
+     *
+     * @return Validated debug mode.
+     */
+    private String validatePrivateKey(final Properties props)
         throws NullPointerException {
 
-        String pkProp = props.getProperty("private_keys");
+        String pkProp = props.getProperty("private_key");
 
-        // Default value if ommitted.
         if (pkProp == null || pkProp.equals("")) {
-            return DEFAULT_PRIVATE_KEYS;
-        }
-
-        String[] pkPropArr = pkProp.split(",");
-
-        if(pkPropArr.length != userIDsLength){
-            Console.fatal("The number of user IDs is not equal to " +
-                "the number of private keys in '" + _configFileName + "'");
+            Console.fatal("Missing or empty required property 'private_key' "
+                          + "in '" + _configFileName + "'");
             throw new NullPointerException();
         }
 
-        for(String pk: pkPropArr)
-            if (pk.equals("")) {
-                Console.fatal("Empty private key in "
-                              + "'" + _configFileName + "'");
-                throw new NullPointerException();
-            }
-
-        return pkPropArr;
+        return pkProp;
     }
 
     /* Validates 'timeout_interval' property
      *
      * @return Validated timeout interval.
      */
-    private long validateTimeoutInterval(final Properties props)
+    private int validateTimeoutInterval(final Properties props)
         throws NullPointerException {
 
         String timeoutIntervalProp = props.getProperty("timeout_interval");
@@ -324,7 +334,7 @@ public final class Config {
                           + "' (must be non-negative integer)");
             throw new NullPointerException();
         }
-        long timeoutInterval = Long.parseLong(timeoutIntervalProp);
+        int timeoutInterval = Integer.parseInt(timeoutIntervalProp);
 
         // Validation succeeded.
         return timeoutInterval;
