@@ -20,12 +20,14 @@ public final class HandshakeSocket {
     private DatagramSocket _socket;
 
     // TODO: read server paramters from a config file, or whatever.
-    public HandshakeSocket(InetSocketAddress serverSockAddr)
+    public HandshakeSocket(InetAddress clientAddr,
+                           InetSocketAddress serverSockAddr)
         throws SocketException {
 
         _serverIP = serverSockAddr.getAddress();
         _serverPort = serverSockAddr.getPort();
-        _socket = new DatagramSocket();
+        // port 0 = emphemeral port
+        _socket = new DatagramSocket(0, clientAddr);
         Console.debug("Opened handshake socket ("
                       + _socket.getLocalPort() + ").");
     }

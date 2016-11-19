@@ -22,11 +22,14 @@ import java.net.UnknownHostException;
  */
 public final class Config {
     // Defaults
-    private static final String DEFAULT_SERVER_ADDR = "127.0.0.1";
-    private static final int DEFAULT_SERVER_PORT = 9876;
-    private static final boolean DEFAULT_DEBUG_MODE = false;
+    private static final String  DEFAULT_SERVER_ADDR =          "127.0.0.1";
+    private static final int     DEFAULT_SERVER_PORT =          9876;
+    private static final String  DEFAULT_CLIENT_ADDR =          "127.0.0.1";
+    private static final String  DEFAULT_CLIENT_EXTERNAL_ADDR = "127.0.0.1";
+    private static final int     DEFAULT_CLIENT_PORT =          9877;
+    private static final boolean DEFAULT_DEBUG_MODE =           false;
     // 3 seconds
-    private static final int DEFAULT_TIMEOUT_INTERVAL = 3000;
+    private static final int     DEFAULT_TIMEOUT_INTERVAL =     3000;
 
     // Bookkeeping
     private String _configFileName;
@@ -34,6 +37,9 @@ public final class Config {
     // Properties
     private InetAddress _serverAddr;
     private int _serverPort;
+    private InetAddress _clientAddr;
+    private InetAddress _clientExternalAddr;
+    private int _clientPort;
     private boolean _debug;
     private int _clientId;
     private String _privateKey;
@@ -105,6 +111,18 @@ public final class Config {
         return _timeoutInterval;
     }
 
+    public InetAddress clientAddr() {
+        return _clientAddr;
+    }
+
+    public InetAddress clientExternalAddr() {
+        return _clientExternalAddr;
+    }
+
+    public int clientPort() {
+        return _clientPort;
+    }
+
     // =========================================================================
     // Initialization
     // =========================================================================
@@ -148,6 +166,9 @@ public final class Config {
     private void validate(Properties props) throws NullPointerException {
         _serverAddr = this.validateServerAddr(props);
         _serverPort = this.validateServerPort(props);
+        _clientAddr = this.validateClientAddr(props);
+        _clientExternalAddr = this.validateClientExternalAddr(props);
+        _clientPort = this.validateClientPort(props);
         _debug = this.validateDebug(props);
         _clientId = this.validateClientId(props);
         _privateKey = this.validatePrivateKey(props);
@@ -231,6 +252,113 @@ public final class Config {
 
         // Validation succeeded.
         return serverPort;
+    }
+
+    /* Validates 'client_addr' property.
+     *
+     * Rules:
+     *   Must be resolvable.
+     *   Cannot be "0.0.0.0" or "::"
+     *
+     * @return Validated InetAddress object.
+     */
+    private InetAddress validateClientAddr(final Properties props)
+        throws NullPointerException {
+
+        String clientAddrProp = props.getProperty("client_addr");
+
+        // default value if ommitted.
+        if (clientAddrProp == null) {
+            clientAddrProp = Config.DEFAULT_CLIENT_ADDR;
+        }
+
+        // Use InetAddress.getByName to validate the address.
+        InetAddress clientAddr;
+        try {
+            clientAddr = InetAddress.getByName(clientAddrProp);
+        } catch (UnknownHostException e) {
+            Console.fatal("Could not resolve 'client_addr' property in "
+                          + "'" + _configFileName + "' to a valid host: "
+                          + clientAddrProp);
+            throw new NullPointerException();
+        }
+
+        // Validation succeeded.
+        return clientAddr;
+    }
+
+    /* Validates 'client_external_addr' property.
+     *
+     * Rules:
+     *   Must be resolvable.
+     *   Cannot be "0.0.0.0" or "::"
+     *
+     * @return Validated InetAddress object.
+     */
+    private InetAddress validateClientExternalAddr(final Properties props)
+        throws NullPointerException {
+
+        String clientExternalAddrProp
+            = props.getProperty("client_external_addr");
+
+        // default value if ommitted.
+        if (clientExternalAddrProp == null) {
+            clientExternalAddrProp = Config.DEFAULT_CLIENT_EXTERNAL_ADDR;
+        }
+
+        // Use InetAddress.getByName to validate the address.
+        InetAddress clientExternalAddr;
+        try {
+            clientExternalAddr = InetAddress.getByName(clientExternalAddrProp);
+        } catch (UnknownHostException e) {
+            Console.fatal("Could not resolve 'client_external_addr' property in "
+                          + "'" + _configFileName + "' to a valid host: "
+                          + clientExternalAddrProp);
+            throw new NullPointerException();
+        }
+
+        // Validation succeeded.
+        return clientExternalAddr;
+    }
+
+    /* Validates 'client_port' property.
+     *
+     * Rules:
+     *   Can be omitted (has default)
+     *   Must be integer
+     *   Between 0 and 65535
+     *
+     * @return Validated port number.
+     */
+    private int validateClientPort(final Properties props)
+        throws NullPointerException {
+
+        String clientPortProp = props.getProperty("client_port");
+
+        // Default value if ommitted.
+        if (clientPortProp == null) {
+            return Config.DEFAULT_CLIENT_PORT;
+        }
+
+        // Check format.
+        if (!clientPortProp.matches("^[0-9]+$")) {
+            Console.fatal("Malformed 'client_port' property in "
+                          + "'" + _configFileName + "': '"
+                          + clientPortProp + "' (must be 0-65535)");
+            throw new NullPointerException();
+        }
+
+        // Check bounds.
+        int clientPort = Integer.parseInt(clientPortProp);
+        if (clientPort < 0 || clientPort > 65535) {
+            Console.fatal("Specified 'client_port' property in "
+                            + "'" + _configFileName + "' is out-of-range: '"
+                            + clientPort + "' (must be 0-65535)");
+            throw new NullPointerException();
+        }
+
+        // Validation succeeded.
+        return clientPort;
     }
 
     /* Validate 'debug' property.

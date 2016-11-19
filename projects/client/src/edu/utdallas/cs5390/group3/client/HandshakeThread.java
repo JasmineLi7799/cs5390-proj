@@ -43,7 +43,8 @@ public final class HandshakeThread extends Thread {
         InetSocketAddress serverSockAddr =
             new InetSocketAddress(_client.config.serverAddr(),
                                   _client.config.serverPort());
-        _handshakeSock = new HandshakeSocket(serverSockAddr);
+        _handshakeSock = new HandshakeSocket(_client.config.clientAddr(),
+                                             serverSockAddr);
         _handshakeSock.setSoTimeout(_client.config.timeoutInterval());
     }
 
