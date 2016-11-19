@@ -138,9 +138,12 @@ public final class HandshakeThread extends Thread {
                 break;
             }
         }
-
-        // TODO: finish handshake.
         Console.debug("Handshake thread is terminating.");
+
+        // TODO: At this point, the handshake is done. The next step is
+        // to registe the client (establish the TCP session). This
+        // should really have its own worker thread, which we should
+        // start here before this thread exits.
     }
 
     // =========================================================================

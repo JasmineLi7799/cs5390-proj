@@ -51,9 +51,9 @@ public final class WelcomeThread extends Thread {
      * to the source (client) SocketAddress.
      *
      * For each incoming UDP datagram, the WelcomeThread checks whether
-     * there is an associated ClientThread in the thread map. If so,
-     * the datagram is forwarded to the ClientThread's work queue. If not,
-     * The WelcomeThread spins a new ClientThread and maps it to the
+     * there is an associated HandshakeThread in the thread map. If so,
+     * the datagram is forwarded to the HandshakeThread's work queue. If not,
+     * The WelcomeThread spins a new HandshakeThread and maps it to the
      * client's SocketAddress, before forwarding it on.
      */
     @Override
@@ -77,23 +77,23 @@ public final class WelcomeThread extends Thread {
             }
 
             // Check if the datagram is associated with an existing
-            // client thread.
+            // HandshakeThread.
             SocketAddress sockAddr = dgram.getSocketAddress();
-            ClientThread cthread =
+            HandshakeThread hsThread =
                 _welcomeSock.findThread(sockAddr);
 
-            if (cthread == null) {
+            if (hsThread == null) {
                 // If not, create one.
-                cthread = new ClientThread(sockAddr, _welcomeSock);
+                hsThread = new HandshakeThread(sockAddr, _welcomeSock);
                 // And add the thread to the map so we know where to
                 // forward future datagrams.
-                _welcomeSock.mapThread(sockAddr, cthread);
-                cthread.start();
+                _welcomeSock.mapThread(sockAddr, hsThread);
+                hsThread.start();
             }
 
-            // Forward the datagram to its listener thread.
+            // Forward the datagram to its HandshakeThread.
             try {
-                cthread.udpPut(dgram);
+                hsThread.udpPut(dgram);
             } catch (InterruptedException e) {
                 // Unecessary since we're at the bottom of the loop,
                 // anyway, but this "futureproofs" against changes to

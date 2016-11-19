@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
 /* The WelcomeSocket is a thin wrapper around DatagramSocket.
  *
  * It maintains the thread map that maps a source (client)
- * SocketAddress to a ClientThread. This is used to statefully
+ * SocketAddress to a HandshakeThread. This is used to statefully
  * dispatch UDP packets during the handshake process.
  *
  * It doesn't directly extend DatagramSocket because it implements
@@ -36,9 +36,9 @@ public final class WelcomeSocket {
 
     private Server _server;
 
-    // Maps source (client) SocketAddresses to ClientThread listeners
+    // Maps source (client) SocketAddresses to HandshakeThread listeners
     // for stateful UDP dispatching.
-    private ConcurrentHashMap<SocketAddress, ClientThread> _threadMap;
+    private ConcurrentHashMap<SocketAddress, HandshakeThread> _threadMap;
 
     // =========================================================================
     // Constructor
@@ -47,7 +47,7 @@ public final class WelcomeSocket {
     /* Default constructor */
     public WelcomeSocket() {
         _server = Server.instance();
-        _threadMap = new ConcurrentHashMap<SocketAddress, ClientThread>();
+        _threadMap = new ConcurrentHashMap<SocketAddress, HandshakeThread>();
     }
 
     // =========================================================================
@@ -143,28 +143,28 @@ public final class WelcomeSocket {
     }
 
     // =========================================================================
-    // ClientThread mapping service
+    // HandshakeThread mapping service
     // =========================================================================
     //
     // These functions provide the client SocketAddress ->
-    // ClientThread mapping used by WelcomeThread and ClientThread to
+    // HandshakeThread mapping used by WelcomeThread and HandshakeThread to
     // maintain a connection-oriented layer on top of UDP. I.e., this allows
     // the WelcomeThread to dispatch UDP datagrams to the relevant
-    // ClientThread during the handshake process.
+    // HandshakeThread during the handshake process.
 
-    /* Locates a ClientThread listener by the client's SocketAddress.
+    /* Locates a HandshakeThread listener by the client's SocketAddress.
      *
      * Used to dispatch datagrams associated with an existing
-     * connection to its associated ClientThread.
+     * connection to its associated HandshakeThread.
      *
      * @param id The SocketAddress to search for.
      *
-     * @return Matching ClientThread object, if one was found.
+     * @return Matching HandshakeThread object, if one was found.
      *
      * @throws NullPointerException Thrown if no match was found.
      */
-    public ClientThread findThread(SocketAddress sockAddr) {
-        ClientThread thread;
+    public HandshakeThread findThread(SocketAddress sockAddr) {
+        HandshakeThread thread;
         try {
             thread = _threadMap.get(sockAddr);
         } catch (NullPointerException e) {
@@ -173,29 +173,29 @@ public final class WelcomeSocket {
         return thread;
     }
 
-    /* Maps a ClientThread listener to a client connection's
+    /* Maps a HandshakeThread listener to a client connection's
      * SocketAddress.
      *
      * Any future datagrams from this source socket will be forwarded
-     * to the work queue of the specified ClientThread.
+     * to the work queue of the specified HandshakeThread.
      *
      * @param sockAddr The socket address of the client connection.
-     * @param thread The ClientThread listener.
+     * @param thread The HandshakeThread listener.
      */
-    public void mapThread(SocketAddress sockAddr, ClientThread thread) {
+    public void mapThread(SocketAddress sockAddr, HandshakeThread thread) {
         _threadMap.put(sockAddr, thread);
     }
 
-    /* Unmaps the ClientThread listener for a client connection's
+    /* Unmaps the HandshakeThread listener for a client connection's
      * SocketAddress.
      *
-     * Removes the ClientThread mapping for the specified source
+     * Removes the HandshakeThread mapping for the specified source
      * SocketAddress. Essentially, tells the WelcomeThread to "forget"
      * the connection.
      *
      * @param sockAddr The socket address of the client connection.
      */
-    public ClientThread unmapThread(SocketAddress sockAddr) {
+    public HandshakeThread unmapThread(SocketAddress sockAddr) {
         return _threadMap.remove(sockAddr);
     }
 }

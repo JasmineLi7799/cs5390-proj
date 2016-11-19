@@ -23,52 +23,55 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
-/* ClientThread implements a listener thread that accepts protocol
- * messages from the client over UDP during the handshake, and subsequently
- * TCP for a registered connection.
- *
- * More abstractly, ClientThread generates (most of) the inputs that drive
- * the Client's state.
+/* HandshakeThread implements a listener thread that accepts protocol
+ * messages from the client over UDP during the handshake. It is a
+ * simple state machine model that transitions on inputs from its
+ * work queue of UDP datagrams (furnished by the WelcomeThread).
  */
-public final class ClientThread extends Thread {
+public final class HandshakeThread extends Thread {
     // Associated client info
     private Client _client;
     private InetAddress _clientAddr;
-    private SocketAddress _clientSockAddr;
     private int _clientPort;
-    private byte[] _xres;
+    private SocketAddress _clientSockAddr;
 
-    private Server _server;
-
-    // Work queue for handshake process
-    private LinkedBlockingQueue<DatagramPacket> _udpRcvBuffer;
-    // The ClientThread needs to write to the WelcomeSocket to
+    // The HandshakeThread needs to write to the WelcomeSocket to
     // generate responses during the handshake.
     private WelcomeSocket _welcomeSock;
+    // Work queue for handshake process
+    private LinkedBlockingQueue<DatagramPacket> _workQueue;
+
+    // Needed for client ID lookups.
+    private Server _server;
+
+    // The expected client response value. Populated in sendChallenge() and
+    // referenced in handleResponse()
+    private byte[] _xres;
+
 
     // =========================================================================
     // Constructor
     // =========================================================================
 
-    /* Creates a new ClientThread associated with a particular source
+    /* Creates a new HandshakeThread associated with a particular source
      * (client) socket.
      *
-     * @param sockAddr The UDP socket address this ClientThread will
+     * @param sockAddr The UDP socket address this HandshakeThread will
      * service during handshake
-     * @param sock The WelcomeSocket the ClienThread will send
+     * @param sock The WelcomeSocket the HandshakeThread will send
      * responses over.
      */
-    public ClientThread(SocketAddress sockAddr, WelcomeSocket sock) {
+    public HandshakeThread(SocketAddress sockAddr, WelcomeSocket sock) {
         // Creates a named thread. The name is in the format:
-        // "client listener 1.2.3.4:5"
+        // "handshake 1.2.3.4:5"
         super(Server.instance().threadGroup(),
-              "client listener "
+              "handshake "
               + ((InetSocketAddress)sockAddr).getAddress().getHostAddress()
               + ":"
               + ((InetSocketAddress)sockAddr).getPort());
 
         _server = Server.instance();
-        _udpRcvBuffer = new LinkedBlockingQueue<DatagramPacket>();
+        _workQueue = new LinkedBlockingQueue<DatagramPacket>();
 
         // Note: this is only a safe cast because we are certain that
         // the underlying subtype for this SocketAddress (abstract
@@ -87,33 +90,38 @@ public final class ClientThread extends Thread {
     // Thread runtime management
     // =========================================================================
 
-    /* ClientThread loop.
+    /* Handshake state machine loop.
      *
-     * Parses protocol messages from the network and updates the Client's
-     * state accordingly.
+     * Parses handshake protocol messages from the network and updates the
+     * Client's state accordingly.
      */
     public void run() {
-        Console.debug(tag("Spun new client listener thread"));
+        Console.debug(tag("Spun new handshake thread."));
 
         while (!Thread.interrupted()) {
             try {
+                // The handshake is complete when the client is authenticated.
                 if (_client != null
                     && _client.state() == Client.State.AUTHENTICATED) {
                     break;
                 }
 
+                // Fetch next packet
                 DatagramPacket dgram = this.udpTake();
                 if (dgram.getLength() == 0) {
-                    Console.warn(tag("Received unknown message"));
-                    continue;
-                }
-                Scanner msg = new Scanner(new ByteArrayInputStream(
-                    dgram.getData(), 0, dgram.getLength()));
-                if (!msg.hasNext()) {
-                    Console.warn(tag("Received unknown message"));
+                    Console.warn(tag("Received unknown message."));
                     continue;
                 }
 
+                // Peek at the protocol message type
+                Scanner msg = new Scanner(new ByteArrayInputStream(
+                    dgram.getData(), 0, dgram.getLength()));
+                if (!msg.hasNext()) {
+                    Console.warn(tag("Received unknown message."));
+                    continue;
+                }
+
+                // Dispatch accordingly.
                 switch (msg.next()) {
                 case "HELLO":
                     this.handleHello(dgram);
@@ -124,7 +132,7 @@ public final class ClientThread extends Thread {
             } catch (InterruptedException e) {
                 break;
             } catch (IOException e) {
-                Console.error(tag("IOException in ClientThread"));
+                Console.error(tag("IOException in HandshakeThread."));
                 break;
             }
         }
@@ -138,9 +146,9 @@ public final class ClientThread extends Thread {
      * thread map so that no future UDP datagrams will be routed here.
      */
     private void exitCleanup() {
-        Console.debug(tag("Listener thread is exiting"));
+        Console.debug(tag("Thread is exiting."));
         if (_welcomeSock.unmapThread(_clientSockAddr) == null) {
-            Console.warn(tag("Tried to unmap listener thread, but it was not "
+            Console.warn(tag("Tried to unmap handshake thread, but it was not "
                              + "mapped."));
         }
     }
@@ -159,18 +167,18 @@ public final class ClientThread extends Thread {
      */
     private String tag(String msg) {
         StringBuilder out = new StringBuilder();
-        out.append(msg);
-        out.append(" (");
+        out.append("[Handshake ");
         if (_client != null) {
             out.append("client=");
             out.append(_client.id());
-            out.append(", ");
+        } else {
+            out.append("src=");
+            out.append(_clientAddr.getHostAddress());
+            out.append(':');
+            out.append(_clientPort);
         }
-        out.append("src=");
-        out.append(_clientAddr.getHostAddress());
-        out.append(':');
-        out.append(_clientPort);
-        out.append(").");
+        out.append("] ");
+        out.append(msg);
         return out.toString();
     }
 
@@ -188,7 +196,7 @@ public final class ClientThread extends Thread {
         // Are we in the right state for this?
         if (_client != null
             && _client.state() != Client.State.OFFLINE) {
-            Console.warn(tag("Received HELLO in invalid state"));
+            Console.warn(tag("Received HELLO in invalid state."));
             return;
         }
 
@@ -197,7 +205,7 @@ public final class ClientThread extends Thread {
             dgram.getData(), 0, dgram.getLength()));
         helloMsg.next();
         if (!helloMsg.hasNextInt()) {
-            Console.warn(tag("Received malformed HELLO"));
+            Console.warn(tag("Received malformed HELLO."));
             return;
         }
         int id = helloMsg.nextInt();
@@ -212,7 +220,7 @@ public final class ClientThread extends Thread {
 
         // Set client. Send response.
         _client = client;
-        Console.info(tag("Received HELLO"));
+        Console.info(tag("Received HELLO."));
         this.sendChallenge();
 
         _client.setState(Client.State.CHALLENGE_SENT);
@@ -231,13 +239,12 @@ public final class ClientThread extends Thread {
         String payload = "CHALLENGE " + rand;
 
         // Send the challenge
-        Console.debug(tag("Sending CHALLENGE"));
-        Console.debug(tag("Content = " + payload));
+        Console.debug(tag("Sending " + payload));
 
         // Set the encryption key for post-auth communication.
         byte[] ckey = Cryptor.hash2(_client.privateKey(), randBytes);
         String ckeyString = DatatypeConverter.printHexBinary(ckey);
-        Console.debug("Setting cryptkey: " + ckeyString);
+        Console.debug(tag("Setting client cryptkey: " + ckeyString));
         _client.setCryptKey(ckey);
 
         _xres = Cryptor.hash1(_client.privateKey(), randBytes);
@@ -253,7 +260,7 @@ public final class ClientThread extends Thread {
 
         if (_client != null
             && _client.state() != Client.State.CHALLENGE_SENT) {
-            Console.warn(tag("Received RESPONSE in invalid state"));
+            Console.warn(tag("Received RESPONSE in invalid state."));
             return;
         }
 
@@ -262,7 +269,7 @@ public final class ClientThread extends Thread {
         response.next();
         // No client ID
         if (!response.hasNextInt()) {
-            Console.warn(tag("Receieved truncated RESPONSE (expected id)"));
+            Console.warn(tag("Receieved truncated RESPONSE (expected id)."));
             return;
         }
         // Client spoofing? Sure, why not.
@@ -274,16 +281,15 @@ public final class ClientThread extends Thread {
         }
 
         if (!response.hasNext()) {
-            Console.warn(tag("Receieved truncated RESPONSE (expected res)"));
+            Console.warn(tag("Receieved truncated RESPONSE (expected res)."));
             return;
         }
         String resString = response.next();
         if (response.hasNext()) {
-            Console.warn(tag("Extra bytes in RESPONSE"));
+            Console.warn(tag("Extra bytes in RESPONSE."));
         }
 
-        Console.debug(tag("Received RESPONSE"));
-        Console.debug(tag("res = " + resString));
+        Console.debug(tag("Received RESPONSE " + resString));
 
         byte[] res = DatatypeConverter.parseHexBinary(resString);
         if (Arrays.equals(res, _xres)) {
@@ -297,11 +303,11 @@ public final class ClientThread extends Thread {
                 return;
             }
             _client.setState(Client.State.AUTHENTICATED);
-            Console.info(tag("AUTH_SUCCESS"));
+            Console.info(tag("AUTH_SUCCESS for client " + _client.id()));
         } else {
             _welcomeSock.send("AUTH_FAIL", _clientAddr, _clientPort);
             _client.setState(Client.State.OFFLINE);
-            Console.info(tag("AUTH_FAIL"));
+            Console.info(tag("AUTH_FAIL for client " + _client.id()));
         }
     }
 
@@ -314,7 +320,7 @@ public final class ClientThread extends Thread {
      * @return The next UDP datagram in the queue.
      */
     private DatagramPacket udpTake() throws InterruptedException {
-        return _udpRcvBuffer.take();
+        return _workQueue.take();
     }
 
     /* Enqueues a UDP datagram to the work queue.
@@ -322,7 +328,7 @@ public final class ClientThread extends Thread {
      * @param dgram The datagram to enqueue.
      */
     public void udpPut(DatagramPacket dgram) throws InterruptedException {
-        _udpRcvBuffer.put(dgram);
+        _workQueue.put(dgram);
     }
 
 }

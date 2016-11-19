@@ -25,8 +25,8 @@ public final class Config {
     private static final String DEFAULT_BIND_ADDR = "0.0.0.0";
     private static final int DEFAULT_BIND_PORT = 9876;
     private static final boolean DEFAULT_DEBUG_MODE = false;
-    private static final int[] DEFAULT_USER_IDS = {1,2};
-    private static final String[] DEFAULT_PRIVATE_KEYS = {"foo","bar"};
+    private static final int[] DEFAULT_USER_IDS = {};
+    private static final String[] DEFAULT_PRIVATE_KEYS = {};
 
     // Bookkeeping
     private String _configFileName;
