@@ -91,20 +91,16 @@ public final class Main {
         }
 
         in.close();
-        // Kill all threads in main()'s ThreadGroup when
-        // main() exits.
-        Thread.currentThread().getThreadGroup().interrupt();
+        // Kill all threads in the "client" group.
+        _client.threadGroup().interrupt();
     }
 
     private static void registerShutdownHook() {
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override
             public void run() {
-                // TODO: state-specific cleanup tasks?
-
-                // Kill all threads in main()'s ThreadGroup.
-                Thread.currentThread().
-                    getThreadGroup().interrupt();
+                // Kill all threads in the "client" group.
+                _client.threadGroup().interrupt();
             }
         }));
     }

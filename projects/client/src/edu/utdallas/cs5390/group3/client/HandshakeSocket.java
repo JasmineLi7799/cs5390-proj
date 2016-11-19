@@ -26,17 +26,22 @@ public final class HandshakeSocket {
         _serverIP = serverSockAddr.getAddress();
         _serverPort = serverSockAddr.getPort();
         _socket = new DatagramSocket();
-        Console.debug("Opened welcome socket (" + _socket.getLocalPort() + ").");
+        Console.debug("Opened handshake socket ("
+                      + _socket.getLocalPort() + ").");
     }
 
     public void finalize() {
         this.close();
     }
 
+    public void setSoTimeout(int timeout) throws SocketException {
+        _socket.setSoTimeout(timeout);
+    }
+
     public void close() {
-        Console.debug("Welcome socket (" + _socket.getLocalPort() + ")"
-                      + " closed.");
         if (!_socket.isClosed()) {
+            Console.debug("Handshake socket (" + _socket.getLocalPort() + ")"
+                          + " closed.");
             _socket.close();
         }
     }

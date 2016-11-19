@@ -18,6 +18,9 @@ import java.util.Arrays;
 import java.io.ByteArrayOutputStream;
 
 public final class Cryptor {
+    // AES = 128 bits = 16 bytes
+    public static int CRYPT_LENGTH = 16;
+
     private static MessageDigest _md5;
     private static MessageDigest _sha1;
     private static final SecureRandom _rand = new SecureRandom();

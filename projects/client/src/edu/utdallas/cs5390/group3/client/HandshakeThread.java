@@ -10,6 +10,7 @@ import java.net.InetSocketAddress;
 
 import java.io.IOException;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.lang.InterruptedException;
 import java.lang.NullPointerException;
 
@@ -23,6 +24,9 @@ import java.nio.charset.StandardCharsets;
 import javax.xml.bind.DatatypeConverter;
 
 public final class HandshakeThread extends Thread {
+    // Time to wait for server responses before giving up.
+    private static final int TIMEOUT_INTERVAL = 3000;
+
     private static HandshakeSocket _handshakeSock;
 
     private Client _client;
@@ -37,12 +41,13 @@ public final class HandshakeThread extends Thread {
       */
     public HandshakeThread(Client client) throws SocketException {
 
-        super();
+        super(client.threadGroup(), "handshake");
         _client = client;
         InetSocketAddress serverSockAddr =
             new InetSocketAddress(_client.config.serverAddr(),
                                   _client.config.serverPort());
         _handshakeSock = new HandshakeSocket(serverSockAddr);
+        _handshakeSock.setSoTimeout(TIMEOUT_INTERVAL);
     }
 
     // =========================================================================
@@ -55,8 +60,8 @@ public final class HandshakeThread extends Thread {
      * these blocking calls by closing the underlying port. */
     @Override
     public void interrupt() {
-        super.interrupt();
         _handshakeSock.close();
+        super.interrupt();
     }
 
     /* This worker thread performs the HELLO, CHALLENGE, RESPONSE,
@@ -75,17 +80,30 @@ public final class HandshakeThread extends Thread {
 
         while (!Thread.interrupted()) {
             try {
-                // At the start of this loop we are HELLO_SENT.
-                // we demote to OFFLINE on AUTH_FAIL, or
-                // promote to AUTHENTICATED on HELLO_SENT.
-                // Either way, we're done. If auth fails, we'll
-                // inform the user and they can try logging in again.
+                // AUTH_FAIL -> OFFLINE
+                // AUTH_SUCCESS -> AUTHENTICATED
+                // Either way, this handshake attempt is done.
                 if (_client.state() == Client.State.AUTHENTICATED ||
                     _client.state() == Client.State.OFFLINE) {
                     break;
                 }
 
-                DatagramPacket dgram = _handshakeSock.receive();
+                // Get the next protocol message from the socket.
+                DatagramPacket dgram;
+                try {
+                    dgram = _handshakeSock.receive();
+                } catch (SocketTimeoutException e) {
+                    String op = "CHALLENGE";
+                    if (_client.state() == Client.State.RESPONSE_SENT) {
+                        op = "AUTH_SUCCESS/AUTH_FAIL";
+                    }
+                    Console.error("Timeout while waiting for " + op
+                                  + " from server. Retry your log on.");
+                    Console.error("This may be a temporary problem. If it "
+                                  + "persists, check your configuration.");
+                    break;
+                }
+
                 if (dgram.getLength() == 0) {
                     Console.warn("Received unknown message.");
                     continue;
@@ -98,7 +116,7 @@ public final class HandshakeThread extends Thread {
                 // best we can do is guess heuristically based on message
                 // length.
                 if (_client.state() == Client.State.RESPONSE_SENT
-                    && dgram.getLength() == 16) {
+                    && dgram.getLength() == Cryptor.CRYPT_LENGTH) {
                     // replace the datagram data with its decrypted
                     // payload.
                     try {

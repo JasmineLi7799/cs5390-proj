@@ -17,6 +17,7 @@ import java.lang.StringBuilder;
 import javax.xml.bind.DatatypeConverter;
 
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import java.net.DatagramPacket;
 import java.net.InetAddress;
@@ -29,6 +30,8 @@ import java.net.SocketAddress;
  * work queue of UDP datagrams (furnished by the WelcomeThread).
  */
 public final class HandshakeThread extends Thread {
+    private static final long TIMEOUT_INTERVAL = 3000L;
+
     // Associated client info
     private Client _client;
     private InetAddress _clientAddr;
@@ -85,7 +88,6 @@ public final class HandshakeThread extends Thread {
         _welcomeSock = sock;
     }
 
-
     // =========================================================================
     // Thread runtime management
     // =========================================================================
@@ -107,7 +109,14 @@ public final class HandshakeThread extends Thread {
                 }
 
                 // Fetch next packet
-                DatagramPacket dgram = this.udpTake();
+                DatagramPacket dgram = this.udpPoll();
+                if (dgram == null) {
+                    if (_client != null) {
+                        Console.warn(
+                            tag("Timed out while waiting for RESPONSE."));
+                    }
+                    break;
+                }
                 if (dgram.getLength() == 0) {
                     Console.warn(tag("Received unknown message."));
                     continue;
@@ -319,8 +328,8 @@ public final class HandshakeThread extends Thread {
      *
      * @return The next UDP datagram in the queue.
      */
-    private DatagramPacket udpTake() throws InterruptedException {
-        return _workQueue.take();
+    private DatagramPacket udpPoll() throws InterruptedException {
+        return _workQueue.poll(TIMEOUT_INTERVAL, TimeUnit.MILLISECONDS);
     }
 
     /* Enqueues a UDP datagram to the work queue.

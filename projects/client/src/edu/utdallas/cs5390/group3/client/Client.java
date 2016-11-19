@@ -1,6 +1,6 @@
 package edu.utdallas.cs5390.group3.client;
 
-import java.lang.String;
+import java.lang.ThreadGroup;
 
 import java.util.concurrent.Semaphore;
 import java.lang.InterruptedException;
@@ -19,6 +19,9 @@ public final class Client {
 
     // Configuration node
     public Config config;
+
+    // Runtime management
+    private ThreadGroup _threadGroup;
 
     // Client state and guard semaphore.
     private State _state;
@@ -47,6 +50,7 @@ public final class Client {
         _privateKey = this.config.privateKey();
         _stateLock = new Semaphore(1);
         _state = State.OFFLINE;
+        _threadGroup = new ThreadGroup("client");
     }
 
     // =========================================================================
@@ -56,6 +60,11 @@ public final class Client {
     public int id() { return _id; }
     public String privateKey() { return _privateKey; }
     public SecretKeySpec cryptKey() { return _cryptKey; }
+
+    /* Convenience accessor for the named "client" ThreadGroup. */
+    public ThreadGroup threadGroup() {
+        return _threadGroup;
+    }
 
     public State state() throws InterruptedException {
         State retVal;
