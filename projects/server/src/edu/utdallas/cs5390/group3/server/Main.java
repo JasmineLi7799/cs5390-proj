@@ -9,16 +9,10 @@ import java.lang.Thread;
 import java.lang.IllegalStateException;
 import java.util.NoSuchElementException;
 
-import java.util.Scanner;
-
 /* The Main class implements the server's interactive console and
  * creates the Server object.
  */
 public final class Main {
-
-    // TODO: roll System.in into Console object? Only a single thread
-    // reads from System.in, so we don't need a locking semaphore as
-    // with System.out...
     public static void main(String[] args) throws Exception {
 
         // Create, configure, and start server
@@ -47,7 +41,6 @@ public final class Main {
 
         // Console input loop
         Console.info("Type 'quit' or 'exit' to terminate (case-insensitive).");
-        Scanner in = new Scanner(System.in);
         while (!Thread.interrupted()) {
             // If the WelcomeThread dies, the server is toast.
             if (!server.isAlive()) {
@@ -56,7 +49,7 @@ public final class Main {
             }
 
             try {
-                String command = in.nextLine();
+                String command = Console.nextLine();
                 if (command.matches("(?i:)^(quit|exit)$")) {
                     break;
                 } else {
@@ -79,6 +72,7 @@ public final class Main {
         // will happily continue running without the main thread
         // (interactive console).
         server.stop();
+        Console.close();
     }
 
     /* Whenever and wherever the program exits, we should try to call

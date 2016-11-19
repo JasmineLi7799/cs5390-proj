@@ -13,7 +13,6 @@ import java.util.NoSuchElementException;
 
 import java.util.Properties;
 
-import java.util.Scanner;
 import java.io.FileInputStream;
 import java.io.InputStream;
 
@@ -42,11 +41,10 @@ public final class Main {
         Console.info("Type 'log on' to begin, 'quit' or 'exit' "
                      + "to exit (case-insensitive).");
 
-        Scanner in = new Scanner(System.in);
         while (!Thread.interrupted()) {
             String command;
             try {
-                command = in.nextLine();
+                command = Console.nextLine();
             } catch (NoSuchElementException |
                      IllegalStateException e) {
                 Console.fatal("Console caught input exception: " + e);
@@ -90,9 +88,9 @@ public final class Main {
             }
         }
 
-        in.close();
         // Kill all threads in the "client" group.
         _client.threadGroup().interrupt();
+        Console.close();
     }
 
     private static void registerShutdownHook() {
