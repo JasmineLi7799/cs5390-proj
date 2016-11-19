@@ -265,8 +265,10 @@ public final class HandshakeThread extends Thread {
     private void handleResponse(DatagramPacket dgram)
         throws InterruptedException, IOException {
 
-        if (_client != null
-            && _client.state() != Client.State.CHALLENGE_SENT) {
+        if (_client == null
+            || (_client != null
+                && _client.state() != Client.State.CHALLENGE_SENT)) {
+
             Console.warn(tag("Received RESPONSE in invalid state."));
             return;
         }

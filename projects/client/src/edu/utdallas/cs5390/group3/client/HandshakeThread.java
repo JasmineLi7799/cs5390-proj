@@ -94,6 +94,7 @@ public final class HandshakeThread extends Thread {
                     if (_client.state() == Client.State.RESPONSE_SENT) {
                         op = "AUTH_SUCCESS/AUTH_FAIL";
                     }
+                    _client.setState(Client.State.OFFLINE);
                     Console.error("Timeout while waiting for " + op
                                   + " from server. Retry your log on.");
                     Console.error("This may be a temporary problem. If it "
@@ -204,6 +205,7 @@ public final class HandshakeThread extends Thread {
 
         Console.info("Received CHALLENGE from server...");
         Console.debug("rand = " + randString);
+
         sendResponse(rand);
     }
 
