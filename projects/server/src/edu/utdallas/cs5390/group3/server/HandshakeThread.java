@@ -30,8 +30,6 @@ import java.net.SocketAddress;
  * work queue of UDP datagrams (furnished by the WelcomeThread).
  */
 public final class HandshakeThread extends Thread {
-    private static final long TIMEOUT_INTERVAL = 3000L;
-
     // Associated client info
     private Client _client;
     private InetAddress _clientAddr;
@@ -329,7 +327,12 @@ public final class HandshakeThread extends Thread {
      * @return The next UDP datagram in the queue.
      */
     private DatagramPacket udpPoll() throws InterruptedException {
-        return _workQueue.poll(TIMEOUT_INTERVAL, TimeUnit.MILLISECONDS);
+        if (_server.config.timeoutInterval() > 0) {
+            return _workQueue.poll(_server.config.timeoutInterval(),
+                                TimeUnit.MILLISECONDS);
+        } else {
+            return _workQueue.take();
+        }
     }
 
     /* Enqueues a UDP datagram to the work queue.

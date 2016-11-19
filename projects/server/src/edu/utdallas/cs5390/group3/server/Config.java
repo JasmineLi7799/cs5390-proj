@@ -27,6 +27,8 @@ public final class Config {
     private static final boolean DEFAULT_DEBUG_MODE = false;
     private static final int[] DEFAULT_USER_IDS = {};
     private static final String[] DEFAULT_PRIVATE_KEYS = {};
+    // 3 seconds
+    private static final long DEFAULT_TIMEOUT_INTERVAL = 3000L;
 
     // Bookkeeping
     private String _configFileName;
@@ -37,6 +39,7 @@ public final class Config {
     private boolean _debugMode;
     private int[] _userIDs;
     private String[] _privateKeys;
+    private long _timeoutInterval;
 
     // =========================================================================
     // Constructor
@@ -99,6 +102,10 @@ public final class Config {
         return _privateKeys;
     }
 
+    public long timeoutInterval() {
+        return _timeoutInterval;
+    }
+
     // =========================================================================
     // Initialization
     // =========================================================================
@@ -145,6 +152,7 @@ public final class Config {
         _debugMode = this.validateDebug(props);
         _userIDs = this.validateUserIDs(props);
         _privateKeys = this.validatePrivateKeys(props, _userIDs.length);
+        _timeoutInterval = this.validateTimeoutInterval(props);
     }
 
     /* Validates 'bind_addr' property.
@@ -294,4 +302,31 @@ public final class Config {
         return pkPropArr;
     }
 
+    /* Validates 'timeout_interval' property
+     *
+     * @return Validated timeout interval.
+     */
+    private long validateTimeoutInterval(final Properties props)
+        throws NullPointerException {
+
+        String timeoutIntervalProp = props.getProperty("timeout_interval");
+
+        // Default value if ommitted.
+        if (timeoutIntervalProp == null) {
+            return Config.DEFAULT_TIMEOUT_INTERVAL;
+        }
+
+        // Check format.
+        if (!timeoutIntervalProp.matches("^[0-9]+$")) {
+            Console.fatal("Malformed 'timeout_interval' property in "
+                          + "'" + _configFileName + "': '"
+                          + timeoutIntervalProp
+                          + "' (must be non-negative integer)");
+            throw new NullPointerException();
+        }
+        long timeoutInterval = Long.parseLong(timeoutIntervalProp);
+
+        // Validation succeeded.
+        return timeoutInterval;
+    }
 }
