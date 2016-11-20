@@ -75,13 +75,15 @@ public final class HandshakeThread extends Thread {
         } catch (InterruptedException e) {
             return;
         }
+        Console.info("Initiated login. Waiting for RESPONSE...");
 
         while (!Thread.interrupted()) {
             try {
                 // AUTH_FAIL -> OFFLINE
-                // AUTH_SUCCESS -> AUTHENTICATED
+                // REGISTER_SENT -> done with handshake, spin SessionThread
+                //                  and await REGISTERED response there.
                 // Either way, this handshake attempt is done.
-                if (_client.state() == Client.State.AUTHENTICATED ||
+                if (_client.state() == Client.State.REGISTER_SENT ||
                     _client.state() == Client.State.OFFLINE) {
                     break;
                 }
@@ -204,7 +206,7 @@ public final class HandshakeThread extends Thread {
         Console.debug("Setting cryptkey: " + ckeyString);
         _client.setCryptKey(ckey);
 
-        Console.info("Received CHALLENGE from server...");
+        Console.info("Received CHALLENGE...");
         Console.debug("rand = " + randString);
 
         sendResponse(rand);
@@ -228,7 +230,7 @@ public final class HandshakeThread extends Thread {
             _client.id(),
             res);
 
-        Console.info("Sending RESPONSE to server...");
+        Console.info("Sending RESPONSE...");
         Console.debug(payload);
         // Send the response
         _handshakeSock.send(payload);
@@ -236,12 +238,12 @@ public final class HandshakeThread extends Thread {
         _client.setState(Client.State.RESPONSE_SENT);
     }
 
-    private void handleAuthSuccess() throws InterruptedException {
+    private void handleAuthSuccess() throws InterruptedException, IOException {
         if (_client.state() != Client.State.RESPONSE_SENT) {
             Console.warn("Received AUTH_SUCCESS in invalid state.");
         }
-        Console.info("Authenticated.");
-        _client.setState(Client.State.AUTHENTICATED);
+        Console.info("Received AUTH_SUCCESS...");
+        this.sendRegister();
     }
 
     private void handleAuthFail() throws InterruptedException {
@@ -251,5 +253,34 @@ public final class HandshakeThread extends Thread {
         Console.info("Authentication failed. Check 'user_id' and "
                      + "'private_key' in the config file and try again.");
         _client.setState(Client.State.OFFLINE);
+    }
+
+    private void sendRegister()
+        throws InterruptedException, IOException {
+
+        String payload = String.format(
+            "REGISTER %s %d",
+            _client.config.clientExternalAddr().getHostAddress(),
+            _client.config.clientPort());
+
+        // Start the SessionThread
+        (new SessionThread(_client)).start();
+
+        Console.info("Sending REGISTER...");
+        Console.debug(payload);
+        // Send the REGISTER message
+        byte[] cryptPayload;
+        try {
+            cryptPayload = Cryptor.encrypt(_client.cryptKey(), payload);
+        } catch (Exception e) {
+            // This shouldn't be possible.
+            Console.error("Encryption failure in "
+                          + "HandhsakeThread.sendRegister(): " + e);
+            Console.error("Log on aborted.");
+            _client.setState(Client.State.OFFLINE);
+            return;
+        }
+        _handshakeSock.send(cryptPayload);
+        _client.setState(Client.State.REGISTER_SENT);
     }
 }

@@ -29,8 +29,7 @@ public final class Client {
         HELLO_SENT,
         CHALLENGE_RECV,
         RESPONSE_SENT,
-        AUTHENTICATED,
-        REGISTERED
+        REGISTER_SENT,
         // ...
     }
 

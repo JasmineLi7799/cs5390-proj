@@ -74,7 +74,6 @@ public final class Main {
                 try {
                     HandshakeThread handshake =
                         new HandshakeThread(_client);
-                    Console.info("Initiated login. Waiting for response...");
                     handshake.start();
                 } catch (SocketException e) {
                     Console.error("Could not initiate login: " + e);
