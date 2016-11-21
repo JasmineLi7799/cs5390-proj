@@ -36,7 +36,12 @@ public final class HandshakeThread extends Thread {
     private InetAddress _clientAddr;
     private int _clientPort;
     private SocketAddress _clientSockAddr;
+
+    // Info needed to set up SessionThread upon succesful processing
+    // of the REGISTER request (end of handshake)
     private boolean _isComplete;
+    private InetAddress _regAddr;
+    private int _regPort;
 
     // The HandshakeThread needs to write to the WelcomeSocket to
     // generate responses during the handshake.
@@ -126,24 +131,28 @@ public final class HandshakeThread extends Thread {
             }
         }
 
-        this.exitCleanup();
+        this.exitAction();
     }
 
-    /* Performs cleanup tasks whenever the thread exits.
+    /* Starts the SessionThread if the handshake completed succesfully,
+     * or resets the client state if the handshake was aborted.
      *
-     * Primarily, this unmaps the thread from the WelcomeSocket's
-     * thread map so that no future UDP datagrams will be routed here.
+     * Unmaps the HandshakeThread so that the WelcomeThread won't try to
+     * route future UDP datagrams to a non-extistent thread.
      */
-    private void exitCleanup() {
-        if (!_isComplete && _client != null) {
+    private void exitAction() {
+        if (_isComplete) {
+            (new SessionThread(_client, _regAddr, _regPort)).start();
+        } else if (_client != null) {
             try {
                 _client.setState(Client.State.OFFLINE);
-                Console.debug(tag("Aborted with partial handshake. Resetting "
-                                + "client state."));
+                Console.debug(tag("Aborting handshake. Resetting client "
+                                + "state."));
             } catch (InterruptedException e) {
                 // Nothing to do about this; we're about to exit anyway.
             }
         }
+
         Console.debug(tag("Handshake thread terminating."));
         if (_welcomeSock.unmapThread(_clientSockAddr) == null) {
             Console.debug(tag("Tried to unmap handshake thread, but it was not "
@@ -432,7 +441,8 @@ public final class HandshakeThread extends Thread {
         // Finally good.
         Console.debug(tag("Received REGISTER " + regAddrString
                           + " " + regPort));
-        (new SessionThread(_client, regAddr, regPort)).start();
+        _regAddr = regAddr;
+        _regPort = regPort;
         _isComplete = true;
 
         return true;

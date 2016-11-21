@@ -88,68 +88,16 @@ public final class HandshakeThread extends Thread {
                     break;
                 }
 
-                // Get the next protocol message from the socket.
-                DatagramPacket dgram;
-                try {
-                    dgram = _handshakeSock.receive();
-                } catch (SocketTimeoutException e) {
-                    String op = "CHALLENGE";
-                    if (_client.state() == Client.State.RESPONSE_SENT) {
-                        op = "AUTH_SUCCESS/AUTH_FAIL";
-                    }
+                DatagramPacket dgram = this.fetchDatagram();
+                if (dgram == null) {
                     _client.setState(Client.State.OFFLINE);
-                    Console.error("Timeout while waiting for " + op
-                                  + " from server. Retry your log on.");
-                    Console.error("This may be a temporary problem. If it "
-                                  + "persists, check your configuration.");
-                    break;
-                }
-
-                if (dgram.getLength() == 0) {
-                    Console.warn("Received unknown message.");
                     continue;
                 }
 
-                // This is an odd predicament. From the RESPONSE_SENT
-                // state, we don't know whether the next reply from the
-                // server will be encrypted or not since this depends on
-                // whether authentication succeeded or failed. The
-                // best we can do is guess heuristically based on message
-                // length.
-                if (_client.state() == Client.State.RESPONSE_SENT
-                    && dgram.getLength() == Cryptor.CRYPT_LENGTH) {
-                    // replace the datagram data with its decrypted
-                    // payload.
-                    try {
-                        Cryptor.decrypt(_client.cryptKey(), dgram);
-                    } catch (Exception e) {
-                        Console.fatal("Decryption failure: " + e);
-                        break;
-                    }
+                if (!this.dispatch(dgram)) {
+                    break;
                 }
 
-                // Peek at the protocol message type.
-                Scanner msg = new Scanner(new ByteArrayInputStream(
-                    dgram.getData(), 0, dgram.getLength()));
-                if (!msg.hasNext()) {
-                    Console.warn("Received unknown message.");
-                    continue;
-                }
-
-                // And dispatch accordingly.
-                switch (msg.next()) {
-                case "CHALLENGE":
-                    this.handleChallenge(dgram);
-                    break;
-                case "AUTH_SUCCESS":
-                    this.handleAuthSuccess();
-                    break;
-                case "AUTH_FAIL":
-                    this.handleAuthFail();
-                    break;
-                default:
-                    Console.warn("Received unknown message.");
-                }
             } catch (InterruptedException e) {
                 break;
             } catch (IOException e) {
@@ -157,17 +105,69 @@ public final class HandshakeThread extends Thread {
                 break;
             }
         }
-        Console.debug("Handshake thread is terminating.");
 
-        // TODO: At this point, the handshake is done. The next step is
-        // to registe the client (establish the TCP session). This
-        // should really have its own worker thread, which we should
-        // start here before this thread exits.
+        this.exitAction();
+    }
+
+    /* Spins the SessionThread if the handshake completed successfully,
+     * or resets the client state to OFFLINE if the handshake was aborted. */
+    private void exitAction() {
+        try {
+            if (_client.state() == Client.State.REGISTER_SENT) {
+                // Start the SessionThread (takes over from here).
+                (new SessionThread(_client)).start();
+            } else if (_client.state() != Client.State.OFFLINE) {
+                Console.warn("Aborted handshake. Resetting "
+                              + "client state to OFFLINE.");
+                _client.setState(Client.State.OFFLINE);
+            }
+        } catch (InterruptedException e) {
+            // Nothing to do; we're about to exit anyway.
+        }
+        Console.debug("Handshake thread is terminating.");
     }
 
     // =========================================================================
     // Message processing
     // =========================================================================
+
+    /* Dispatches a datagram to the appropriate handler
+     *
+     * @return False if the handshake should be aborted.
+     */
+    private boolean dispatch(DatagramPacket dgram)
+        throws InterruptedException, IOException {
+
+        // Peek at the protocol message type.
+        Scanner msg = new Scanner(new ByteArrayInputStream(
+            dgram.getData(), 0, dgram.getLength()));
+        if (!msg.hasNext()) {
+            Console.debug("Received empty message.");
+            return false;
+        }
+
+        // And dispatch accordingly.
+        switch (msg.next()) {
+        case "CHALLENGE":
+            if (!this.handleChallenge(dgram)) {
+                return false;
+            }
+            break;
+        case "AUTH_SUCCESS":
+            if (!this.handleAuthSuccess()) {
+                return false;
+            }
+            break;
+        case "AUTH_FAIL":
+            this.handleAuthFail();
+            return false;
+        default:
+            Console.warn("Received unknown message.");
+            return false;
+        }
+
+        return true;
+    }
 
     /* Generates and sends a HELLO message to the server. */
     private void sendHello() throws InterruptedException, IOException {
@@ -178,13 +178,16 @@ public final class HandshakeThread extends Thread {
     /* Parses and validates CHALLENGE datagram.
      *
      * @param dgram The CHALLENGE datagram to process.
+     *
+     * @return False if the datagram was invalid, or received in an invalid
+     * state.
      */
-    private void handleChallenge(DatagramPacket dgram)
+    private boolean handleChallenge(DatagramPacket dgram)
         throws InterruptedException, IOException {
 
         if (_client.state() != Client.State.HELLO_SENT) {
-            Console.warn("Receieved CHALLENGE in invalid state.");
-            return;
+            Console.debug("Receieved CHALLENGE in invalid state.");
+            return false;
         }
 
         Scanner msg = new Scanner(new ByteArrayInputStream(
@@ -192,13 +195,14 @@ public final class HandshakeThread extends Thread {
         msg.next();
 
         if (!msg.hasNext()) {
-            Console.warn("Received truncated CHALLENGE.");
-            return;
+            Console.debug("Received truncated CHALLENGE.");
+            return false;
         }
 
         String randString = msg.next();
         if (msg.hasNext()) {
-            Console.warn("Receieve CHALLENGE with extra bytes.");
+            Console.debug("Receieve CHALLENGE with extra bytes.");
+            return false;
         }
         byte[] rand = DatatypeConverter.parseHexBinary(randString);
         byte[] ckey = Cryptor.hash2(_client.privateKey(), rand);
@@ -210,6 +214,7 @@ public final class HandshakeThread extends Thread {
         Console.debug("rand = " + randString);
 
         sendResponse(rand);
+        return true;
     }
 
     /* Generates and sends the challenge RESPONSE
@@ -238,12 +243,21 @@ public final class HandshakeThread extends Thread {
         _client.setState(Client.State.RESPONSE_SENT);
     }
 
-    private void handleAuthSuccess() throws InterruptedException, IOException {
+    /* Parses and validates AUTH_SUCCESS datagram.
+     *
+     * @param dgram The AUTH_SUCCESS datagram to process.
+     *
+     * @return False if the datagram was invalid, or received in an invalid
+     * state.
+     */
+    private boolean handleAuthSuccess() throws InterruptedException, IOException {
         if (_client.state() != Client.State.RESPONSE_SENT) {
             Console.warn("Received AUTH_SUCCESS in invalid state.");
+            return false;
         }
         Console.info("Received AUTH_SUCCESS...");
         this.sendRegister();
+        return true;
     }
 
     private void handleAuthFail() throws InterruptedException {
@@ -277,13 +291,64 @@ public final class HandshakeThread extends Thread {
             return;
         }
 
-        // Start the SessionThread (takes over from here).
-        (new SessionThread(_client)).start();
-
         // Send the REGISTER message.
         Console.info("Sending REGISTER...");
         Console.debug(payload);
         _handshakeSock.send(cryptPayload);
         _client.setState(Client.State.REGISTER_SENT);
+    }
+
+    // =========================================================================
+    // Socket IO
+    // =========================================================================
+
+    /* Fetches the next datagram and decrypts it, if necessary.
+     *
+     * @return The (decrypted) datagram, or null if an error occurred.
+     */
+    private DatagramPacket fetchDatagram()
+        throws InterruptedException, IOException {
+
+        // Get the next protocol message from the socket.
+        DatagramPacket dgram;
+        try {
+            dgram = _handshakeSock.receive();
+        } catch (SocketTimeoutException e) {
+            String op = "CHALLENGE";
+            if (_client.state() == Client.State.RESPONSE_SENT) {
+                op = "AUTH_SUCCESS/AUTH_FAIL";
+            }
+            _client.setState(Client.State.OFFLINE);
+            Console.error("Timeout while waiting for " + op
+                            + " from server. Retry your log on.");
+            Console.error("This may be a temporary problem. If it "
+                            + "persists, check your configuration.");
+            return null;
+        }
+
+        if (dgram.getLength() == 0) {
+            Console.debug("Received empty message.");
+            return null;
+        }
+
+        // From the RESPONSE_SENT state, we don't know whether the next reply
+        // from the server will be encrypted or not since this depends on
+        // whether authentication succeeded or failed.
+        // Fortunately, AUTH_SUCCESS and AUTH_FAILURE both have distinct,
+        // fixed lengths, so we can differentiate without any complicated
+        // heuristics.
+        if (_client.state() == Client.State.RESPONSE_SENT
+            && dgram.getLength() == Cryptor.CRYPT_LENGTH) {
+            // replace the datagram data with its decrypted
+            // payload.
+            try {
+                Cryptor.decrypt(_client.cryptKey(), dgram);
+            } catch (Exception e) {
+                Console.fatal("Decryption failure: " + e);
+                return null;
+            }
+        }
+
+        return dgram;
     }
 }
