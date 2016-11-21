@@ -19,9 +19,9 @@ public final class SessionSocket {
     private Socket _socket;
     private Queue<byte[]> _msgQueue;
 
-    public SessionSocket(Client c)
+    public SessionSocket()
         throws SocketException, IOException, SocketTimeoutException {
-        _client = c;
+        _client = Client.instance();
 
         ServerSocket bindSock = new ServerSocket();
         bindSock.setSoTimeout(_client.config.timeoutInterval());

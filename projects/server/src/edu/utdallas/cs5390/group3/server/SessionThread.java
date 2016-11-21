@@ -33,23 +33,9 @@ public final class SessionThread extends Thread {
             return;
         }
 
-        try {
-            this.sendRegister();
-        } catch (IOException e) {
-            Console.error(tag("While sending REGISTER: " + e));
-            this.exitCleanup();
-            return;
-        } catch (InterruptedException ie) {
-            this.exitCleanup();
-            return;
-        }
-
-        try {
-            this.requestLoop();
-        } catch (InterruptedException e) {
-            this.exitCleanup();
-            return;
-        }
+        // TODO: everything
+        // See HandshakeThread in client and server for inspiration on
+        // how to structure this as a state machine.
 
         this.exitCleanup();
     }
@@ -114,24 +100,4 @@ public final class SessionThread extends Thread {
         return true;
     }
 
-    /* Sends REGISTERED message to client.
-     *
-     * @return True on success, False on failure.
-     */
-    private boolean sendRegister() throws InterruptedException, IOException {
-        // TODO Send the registration message.
-
-        // _client.setState(Client.State.REGISTERED);
-        return true;
-    }
-
-    /* Fetches and processes protocol messages from the client until they
-     * disconnect.
-     */
-    void requestLoop() throws InterruptedException {
-        // TODO: everything
-        // while (!Thread.interrupted()) {
-        // // handle all the things.
-        // }
-    };
 }

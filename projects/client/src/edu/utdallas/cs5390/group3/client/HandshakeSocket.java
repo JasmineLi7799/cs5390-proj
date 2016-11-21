@@ -15,19 +15,14 @@ import java.nio.charset.StandardCharsets;
 public final class HandshakeSocket {
     private static final int RECV_BUF_SIZE = 1024;
 
-    private InetAddress _serverIP;
-    private int _serverPort;
     private DatagramSocket _socket;
 
-    // TODO: read server paramters from a config file, or whatever.
-    public HandshakeSocket(InetAddress clientAddr,
-                           InetSocketAddress serverSockAddr)
-        throws SocketException {
+    private Client _client;
 
-        _serverIP = serverSockAddr.getAddress();
-        _serverPort = serverSockAddr.getPort();
+    public HandshakeSocket() throws SocketException {
+        _client = Client.instance();
         // port 0 = emphemeral port
-        _socket = new DatagramSocket(0, clientAddr);
+        _socket = new DatagramSocket(0, _client.config.clientAddr());
         Console.debug("Opened handshake socket ("
                       + _socket.getLocalPort() + ").");
     }
@@ -57,8 +52,8 @@ public final class HandshakeSocket {
         DatagramPacket dgram = new DatagramPacket(
             data,
             data.length,
-            _serverIP,
-            _serverPort
+            _client.config.serverAddr(),
+            _client.config.serverPort()
         );
         _socket.send(dgram);
     }

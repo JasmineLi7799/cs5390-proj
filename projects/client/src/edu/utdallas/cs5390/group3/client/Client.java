@@ -20,6 +20,7 @@ public final class Client {
     public Config config;
 
     // Runtime management
+    private static Client _instance;
     private ThreadGroup _threadGroup;
 
     // Client state and guard semaphore.
@@ -34,19 +35,41 @@ public final class Client {
     }
 
     // =========================================================================
-    // Constructor
+    // Constructor & instance accessor. Initialization
     // =========================================================================
 
-    /* Creates a Client in the OFFLINE state.
-     *
-     * @param cfg Client configuration object.
-     */
-    public Client(Config cfg) {
-        this.config = cfg;
-        _id = this.config.clientId();
-        _privateKey = this.config.privateKey();
+    /* Creates a Client in the unconfigured, OFFLINE state. */
+    private Client() {
         _state = State.OFFLINE;
         _threadGroup = new ThreadGroup("client");
+        this.config = null;
+    }
+
+    /* Gets the client instance, creating it if necessary.
+     *
+     * @return The client instance.
+     */
+    public static Client instance() {
+        if (_instance == null) {
+            _instance = new Client();
+        }
+        return _instance;
+    }
+
+    /* Initializes the Config node and configures the client.
+     *
+     * @param configFileName Config file to parse.
+     */
+    public void configure(String configFileName)
+        throws IllegalStateException, NullPointerException {
+        if (config != null) {
+            throw new IllegalStateException(
+                "Multiple invocations of Server.configure()");
+        }
+        this.config = new Config(configFileName);
+
+        _id = this.config.clientId();
+        _privateKey = this.config.privateKey();
     }
 
     // =========================================================================

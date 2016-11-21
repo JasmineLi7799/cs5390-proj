@@ -9,14 +9,14 @@ public final class SessionThread extends Thread {
     SessionSocket _socket;
     Client _client;
 
-    public SessionThread(Client c) {
-        _client = c;
+    public SessionThread() {
+        _client = Client.instance();
     }
 
     public void run() {
         Console.debug("Session thread started.");
         try {
-            _socket = new SessionSocket(_client);
+            _socket = new SessionSocket();
         } catch (SocketTimeoutException e) {
             Console.error("Timeout while waiting for REGISTERED response "
                           + "from server. Check your settings and retry your "

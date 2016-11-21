@@ -36,15 +36,10 @@ public final class HandshakeThread extends Thread {
       *
       * @param client The Client object associated with this handshake.
       */
-    public HandshakeThread(Client client) throws SocketException {
-
-        super(client.threadGroup(), "handshake");
-        _client = client;
-        InetSocketAddress serverSockAddr =
-            new InetSocketAddress(_client.config.serverAddr(),
-                                  _client.config.serverPort());
-        _handshakeSock = new HandshakeSocket(_client.config.clientAddr(),
-                                             serverSockAddr);
+    public HandshakeThread() throws SocketException {
+        super(Client.instance().threadGroup(), "handshake");
+        _client = Client.instance();
+        _handshakeSock = new HandshakeSocket();
         _handshakeSock.setSoTimeout(_client.config.timeoutInterval());
     }
 
@@ -115,7 +110,7 @@ public final class HandshakeThread extends Thread {
         try {
             if (_client.state() == Client.State.REGISTER_SENT) {
                 // Start the SessionThread (takes over from here).
-                (new SessionThread(_client)).start();
+                (new SessionThread()).start();
             } else if (_client.state() != Client.State.OFFLINE) {
                 Console.warn("Aborted handshake. Resetting "
                               + "client state to OFFLINE.");

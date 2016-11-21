@@ -34,7 +34,9 @@ public final class SessionSocket {
     }
 
     // TODO
-    // public byte[] readMessage() throws InterruptedException, IOException {
+    // public byte[] readMessage()
+    //     throws InterruptedException, IOException {
+    //
     //     Queue<byte[]> _msgBuffer = new LinkedList<byte[]>;
 
     //     // Read Cryptor.CRYPT_LENGTH bytes at a time from the _socket,
@@ -50,7 +52,9 @@ public final class SessionSocket {
     // }
 
     // TODO
-    // public byte[] sendMessage(String message) {
+    // public byte[] writeMessage(String message)
+    //     throws InterruptedException, IOException {
+    //
     //     // This one is pretty straight forward.
     //     // Just call Cryptor.encrypt(_client.cryptKey(), message)
     //     // and send it on its way with _outStream.write()

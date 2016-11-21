@@ -24,18 +24,21 @@ public final class Main {
     private static InetSocketAddress _serverSockAddr = null;
 
     public static void main(String[] args) throws Exception {
-        Main.registerShutdownHook();
 
+        // Create and configure Client
         String configFileName = "client.cfg";
         if(args.length > 0) {
             configFileName = args[0];
         }
+        Client _client = Client.instance();
         try {
-            _client = new Client(new Config(configFileName));
-        } catch (NullPointerException e) {
+            _client.configure(configFileName);
+        } catch (IllegalStateException | NullPointerException e) {
             Console.fatal("Client configuration failed.");
             return;
         }
+
+        Main.registerShutdownHook();
 
         Console.info("Chat client initialized.");
         Console.info("Type 'log on' to begin, 'quit' or 'exit' "
@@ -73,7 +76,7 @@ public final class Main {
                 }
                 try {
                     HandshakeThread handshake =
-                        new HandshakeThread(_client);
+                        new HandshakeThread();
                     handshake.start();
                 } catch (SocketException e) {
                     Console.error("Could not initiate login: " + e);
