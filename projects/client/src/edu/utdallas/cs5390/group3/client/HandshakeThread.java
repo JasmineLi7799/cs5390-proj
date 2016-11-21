@@ -258,17 +258,13 @@ public final class HandshakeThread extends Thread {
     private void sendRegister()
         throws InterruptedException, IOException {
 
+        // Generate REGISTER contents.
         String payload = String.format(
             "REGISTER %s %d",
             _client.config.clientExternalAddr().getHostAddress(),
             _client.config.clientPort());
 
-        // Start the SessionThread
-        (new SessionThread(_client)).start();
-
-        Console.info("Sending REGISTER...");
-        Console.debug(payload);
-        // Send the REGISTER message
+        // Encrypt the REGISTER message.
         byte[] cryptPayload;
         try {
             cryptPayload = Cryptor.encrypt(_client.cryptKey(), payload);
@@ -280,6 +276,13 @@ public final class HandshakeThread extends Thread {
             _client.setState(Client.State.OFFLINE);
             return;
         }
+
+        // Start the SessionThread (takes over from here).
+        (new SessionThread(_client)).start();
+
+        // Send the REGISTER message.
+        Console.info("Sending REGISTER...");
+        Console.debug(payload);
         _handshakeSock.send(cryptPayload);
         _client.setState(Client.State.REGISTER_SENT);
     }

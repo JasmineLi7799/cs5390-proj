@@ -41,7 +41,7 @@ public final class Client {
     // For instance, suppose Client A sends a CHAT protocol message.
     // Client A's ClientThread will receive the message and relay
     // it to Client B's socket.
-    private ClientSocket _socket;
+    private SessionSocket _socket;
 
     private ChatSession _chat;
 
@@ -68,7 +68,7 @@ public final class Client {
     public int id() { return _id; }
     public String privateKey() { return _privateKey; }
     public SecretKeySpec cryptKey() { return _cryptKey; }
-    public ClientSocket socket() { return _socket; }
+    public SessionSocket socket() { return _socket; }
 
     public State state() throws InterruptedException {
         State retVal;
@@ -86,5 +86,9 @@ public final class Client {
 
     public void setCryptKey(byte[] key) {
         _cryptKey = new SecretKeySpec(key, "AES");
+    }
+
+    public void setSocket(SessionSocket sock) {
+        _socket = sock;
     }
 }

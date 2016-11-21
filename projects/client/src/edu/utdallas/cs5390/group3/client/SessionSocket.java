@@ -26,9 +26,15 @@ public final class SessionSocket {
         ServerSocket bindSock = new ServerSocket();
         bindSock.setSoTimeout(_client.config.timeoutInterval());
         bindSock.bind(new InetSocketAddress(
-                          _client.config.serverAddr(),
-                          _client.config.serverPort()));
+                          _client.config.clientAddr(),
+                          _client.config.clientPort()));
+        Console.debug("Listening for server connection on "
+                      + bindSock.getInetAddress().getHostAddress()
+                      + ":" + bindSock.getLocalPort());
         _socket = bindSock.accept();
+        Console.debug("Accepting connection from server at "
+                      + _socket.getInetAddress().getHostAddress()
+                      + ":" + _socket.getPort());
 
         _msgQueue = new LinkedList<byte[]>();
     }

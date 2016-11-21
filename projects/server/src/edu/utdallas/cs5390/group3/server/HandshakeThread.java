@@ -5,6 +5,7 @@ import edu.utdallas.cs5390.group3.core.Cryptor;
 
 import java.lang.InterruptedException;
 import java.io.IOException;
+import java.net.UnknownHostException;
 
 import java.lang.Thread;
 
@@ -100,12 +101,6 @@ public final class HandshakeThread extends Thread {
 
         while (!Thread.interrupted()) {
             try {
-                // The handshake is complete when the client is authenticated.
-                if (_client != null
-                    && _client.state() == Client.State.AUTHENTICATED) {
-                    break;
-                }
-
                 // Fetch next packet
                 DatagramPacket dgram = this.udpPoll();
                 if (dgram == null) {
@@ -118,6 +113,18 @@ public final class HandshakeThread extends Thread {
                 if (dgram.getLength() == 0) {
                     Console.warn(tag("Received unknown message."));
                     continue;
+                }
+
+                // From the AUTHENTICATED state onward, all client responses
+                // will be encrypted.
+                if (_client != null
+                    && _client.state() == Client.State.AUTHENTICATED) {
+                    try {
+                        Cryptor.decrypt(_client.cryptKey(), dgram);
+                    } catch (Exception e) {
+                        Console.error(tag("Encryption failure: " + e));
+                        break;
+                    }
                 }
 
                 // Peek at the protocol message type
@@ -135,6 +142,13 @@ public final class HandshakeThread extends Thread {
                     break;
                 case "RESPONSE":
                     this.handleResponse(dgram);
+                    break;
+                case "REGISTER":
+                    this.handleRegister(dgram);
+                    // Handshake is finished. SessionThread will take over
+                    // from here via TCP.
+                    this.exitCleanup();
+                    return;
                 }
             } catch (InterruptedException e) {
                 break;
@@ -153,7 +167,7 @@ public final class HandshakeThread extends Thread {
      * thread map so that no future UDP datagrams will be routed here.
      */
     private void exitCleanup() {
-        Console.debug(tag("Thread is exiting."));
+        Console.debug(tag("Handshake thread terminating."));
         if (_welcomeSock.unmapThread(_clientSockAddr) == null) {
             Console.warn(tag("Tried to unmap handshake thread, but it was not "
                              + "mapped."));
@@ -318,6 +332,75 @@ public final class HandshakeThread extends Thread {
             _client.setState(Client.State.OFFLINE);
             Console.info(tag("AUTH_FAIL for client " + _client.id()));
         }
+    }
+
+    /* Validates and processes REGISTER message.
+     *
+     * Creates the SessionThread if the REGISTER request is valid.
+     *
+     * @param dgram The datagram containing the REGISTER.
+     */
+    private void handleRegister(DatagramPacket dgram)
+        throws InterruptedException, IOException {
+
+        if (_client == null
+            || (_client != null
+                && _client.state() != Client.State.AUTHENTICATED)) {
+
+            Console.warn(tag("Received REGISTER in invalid state."));
+            return;
+        }
+
+        Scanner register = new Scanner(new ByteArrayInputStream(
+            dgram.getData(), 0, dgram.getLength()));
+        register.next();
+
+        // No client IP
+        if (!register.hasNext()) {
+            Console.warn(tag("Receieved truncated REGISTER (expected addr)."));
+            return;
+        }
+        String regAddrString = register.next();
+
+        // Validate REGISTER IP
+        InetAddress regAddr;
+        try {
+            regAddr = InetAddress.getByName(regAddrString);
+        } catch (UnknownHostException e) {
+            // bad client IP
+            Console.error(tag("Bad REGISTER address: " + regAddrString));
+            return;
+        }
+
+        // Not necessarily wrong, just weird and worth logging.
+        if (!regAddr.equals(_clientAddr)) {
+            Console.warn(tag("REGISTER adddress "
+                             + "'" + regAddrString + "' "
+                             + "does not match handshake address "
+                             + "'" + _clientAddr.getHostAddress() + "' "
+                             + "(misconfigured client? spoofing attack?)"));
+        }
+
+        // Validate port
+        if (!register.hasNextInt()) {
+            Console.error(tag("Receieved truncated REGISTER (expected port)."));
+            Console.debug(tag("next token: '" + register.next() + "'"));
+            return;
+        }
+        int regPort = register.nextInt();
+        if (regPort < 0 || regPort > 65535) {
+            Console.error(tag("Bad REGISTER port number: " + regPort));
+            return;
+        }
+
+        if (register.hasNext()) {
+            Console.warn(tag("Extra bytes in REGISTER."));
+        }
+
+        // Finally good.
+        Console.debug(tag("Received REGISTER " + regAddrString
+                          + " " + regPort));
+        (new SessionThread(_client, regAddr, regPort)).start();
     }
 
     // =========================================================================

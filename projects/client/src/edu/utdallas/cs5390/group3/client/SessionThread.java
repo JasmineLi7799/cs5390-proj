@@ -25,15 +25,17 @@ public final class SessionThread extends Thread {
                 _client.setState(Client.State.OFFLINE);
             } catch (InterruptedException ie) {
             }
-            exitCleanup();
+            this.exitCleanup();
             return;
         } catch (Exception e) {
             Console.error("While creating SessionSocket: " + e);
-            exitCleanup();
+            this.exitCleanup();
             return;
         }
 
         Console.debug("Got connection from server.");
+        Console.info("Waiting for REGISTERED...");
+        this.exitCleanup();
     }
 
     private void exitCleanup() {
