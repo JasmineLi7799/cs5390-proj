@@ -36,6 +36,7 @@ public final class HandshakeThread extends Thread {
     private InetAddress _clientAddr;
     private int _clientPort;
     private SocketAddress _clientSockAddr;
+    private boolean _isComplete;
 
     // The HandshakeThread needs to write to the WelcomeSocket to
     // generate responses during the handshake.
@@ -97,59 +98,26 @@ public final class HandshakeThread extends Thread {
      * Client's state accordingly.
      */
     public void run() {
+        _isComplete = false;
         Console.debug(tag("Spun new handshake thread."));
 
         while (!Thread.interrupted()) {
             try {
-                // Fetch next packet
-                DatagramPacket dgram = this.udpPoll();
-                if (dgram == null) {
-                    if (_client != null) {
-                        Console.warn(
-                            tag("Timed out while waiting for RESPONSE."));
-                    }
+                // Fetch datagram
+                DatagramPacket dgram;
+                try {
+                    dgram = this.fetchDatagram();
+                } catch (NullPointerException e) {
+                    _client.setState(Client.State.OFFLINE);
                     break;
                 }
-                if (dgram.getLength() == 0) {
-                    Console.warn(tag("Received unknown message."));
-                    continue;
-                }
 
-                // From the AUTHENTICATED state onward, all client responses
-                // will be encrypted.
-                if (_client != null
-                    && _client.state() == Client.State.AUTHENTICATED) {
-                    try {
-                        Cryptor.decrypt(_client.cryptKey(), dgram);
-                    } catch (Exception e) {
-                        Console.error(tag("Encryption failure: " + e));
-                        break;
-                    }
-                }
-
-                // Peek at the protocol message type
-                Scanner msg = new Scanner(new ByteArrayInputStream(
-                    dgram.getData(), 0, dgram.getLength()));
-                if (!msg.hasNext()) {
-                    Console.warn(tag("Received unknown message."));
-                    continue;
-                }
-
-                // Dispatch accordingly.
-                switch (msg.next()) {
-                case "HELLO":
-                    this.handleHello(dgram);
+                // dispatch datagram
+                if (!this.dispatch(dgram)) {
+                    // either the data was invalid, or the handshake is done.
                     break;
-                case "RESPONSE":
-                    this.handleResponse(dgram);
-                    break;
-                case "REGISTER":
-                    this.handleRegister(dgram);
-                    // Handshake is finished. SessionThread will take over
-                    // from here via TCP.
-                    this.exitCleanup();
-                    return;
                 }
+
             } catch (InterruptedException e) {
                 break;
             } catch (IOException e) {
@@ -167,9 +135,18 @@ public final class HandshakeThread extends Thread {
      * thread map so that no future UDP datagrams will be routed here.
      */
     private void exitCleanup() {
+        if (!_isComplete && _client != null) {
+            try {
+                _client.setState(Client.State.OFFLINE);
+                Console.debug(tag("Aborted with partial handshake. Resetting "
+                                + "client state."));
+            } catch (InterruptedException e) {
+                // Nothing to do about this; we're about to exit anyway.
+            }
+        }
         Console.debug(tag("Handshake thread terminating."));
         if (_welcomeSock.unmapThread(_clientSockAddr) == null) {
-            Console.warn(tag("Tried to unmap handshake thread, but it was not "
+            Console.debug(tag("Tried to unmap handshake thread, but it was not "
                              + "mapped."));
         }
     }
@@ -207,18 +184,64 @@ public final class HandshakeThread extends Thread {
     // Protocol message parsing
     // =========================================================================
 
+    /* Dispatch the packet to the appropriate handler.
+     *
+     * @param dgram The datagram to dispatch.
+     *
+     * @return True if the handshake should continue. False if the handshake
+     * is complete or an unrecoverable error occured (ex. invalid data from
+     * client).
+     */
+    private boolean dispatch(DatagramPacket dgram)
+        throws InterruptedException, IOException {
+
+        // Peek at the protocol message type
+        Scanner msg = new Scanner(new ByteArrayInputStream(
+            dgram.getData(), 0, dgram.getLength()));
+        if (!msg.hasNext()) {
+            Console.debug(tag("Received empty message."));
+            return false;
+        }
+
+        // Dispatch accordingly.
+        switch (msg.next()) {
+        case "HELLO":
+            if (!this.handleHello(dgram)) {
+                return false;
+            }
+            break;
+        case "RESPONSE":
+            if (!this.handleResponse(dgram)) {
+                return false;
+            }
+            break;
+        case "REGISTER":
+            if (!this.handleRegister(dgram)) {
+                // Partial handshake; reset client state
+                return false;
+            }
+            // Handshake complete; SessionThread will take it from here.
+            return false;
+        }
+
+        return true;
+    }
+
     /* Validates and processes HELLO messages.
      *
      * @param dgram The datagram containing the HELLO.
+     *
+     * @return False if validation failed or we are in an inappropriate state
+     * for this message type.
      */
-    private void handleHello(DatagramPacket dgram)
+    private boolean handleHello(DatagramPacket dgram)
         throws InterruptedException, IOException {
 
         // Are we in the right state for this?
         if (_client != null
             && _client.state() != Client.State.OFFLINE) {
-            Console.warn(tag("Received HELLO in invalid state."));
-            return;
+            Console.debug(tag("Received HELLO in invalid state."));
+            return false;
         }
 
         // Get id from message.
@@ -226,8 +249,8 @@ public final class HandshakeThread extends Thread {
             dgram.getData(), 0, dgram.getLength()));
         helloMsg.next();
         if (!helloMsg.hasNextInt()) {
-            Console.warn(tag("Received malformed HELLO."));
-            return;
+            Console.debug(tag("Received malformed HELLO."));
+            return false;
         }
         int id = helloMsg.nextInt();
         helloMsg.close();
@@ -236,7 +259,7 @@ public final class HandshakeThread extends Thread {
         Client client = _server.findClient(id);
         if (_server.findClient(id) == null) {
             Console.warn(tag("Received HELLO for unknown client: " + id));
-            return;
+            return false;
         }
 
         // Set client. Send response.
@@ -245,6 +268,7 @@ public final class HandshakeThread extends Thread {
         this.sendChallenge();
 
         _client.setState(Client.State.CHALLENGE_SENT);
+        return true;
     }
 
     /* Generates a CHALLENGE message.
@@ -275,16 +299,19 @@ public final class HandshakeThread extends Thread {
     /* Validates and processes RESPONSE messages.
      *
      * @param dgram The datagram containing the RESPONSE.
+     *
+     * @return False, if validation failed or we are in an invalid state for
+     * this message type.
      */
-    private void handleResponse(DatagramPacket dgram)
+    private boolean handleResponse(DatagramPacket dgram)
         throws InterruptedException, IOException {
 
         if (_client == null
             || (_client != null
                 && _client.state() != Client.State.CHALLENGE_SENT)) {
 
-            Console.warn(tag("Received RESPONSE in invalid state."));
-            return;
+            Console.debug(tag("Received RESPONSE in invalid state."));
+            return false;
         }
 
         Scanner response = new Scanner(new ByteArrayInputStream(
@@ -292,24 +319,24 @@ public final class HandshakeThread extends Thread {
         response.next();
         // No client ID
         if (!response.hasNextInt()) {
-            Console.warn(tag("Receieved truncated RESPONSE (expected id)."));
-            return;
+            Console.debug(tag("Receieved truncated RESPONSE (expected id)."));
+            return false;
         }
         // Client spoofing? Sure, why not.
         int id = response.nextInt();
         if (id != _client.id()) {
             Console.warn(tag("Receieved RESPONSE from wrong client: "
-                             + id));
-            return;
+                             + id + " (spoofing attack?)"));
+            return false;
         }
 
         if (!response.hasNext()) {
-            Console.warn(tag("Receieved truncated RESPONSE (expected res)."));
-            return;
+            Console.debug(tag("Receieved truncated RESPONSE (expected res)."));
+            return false;
         }
         String resString = response.next();
         if (response.hasNext()) {
-            Console.warn(tag("Extra bytes in RESPONSE."));
+            Console.debug(tag("Extra bytes in RESPONSE."));
         }
 
         Console.debug(tag("Received RESPONSE " + resString));
@@ -323,7 +350,7 @@ public final class HandshakeThread extends Thread {
                 _welcomeSock.send(authMsg, _clientAddr, _clientPort);
             } catch (Exception e) {
                 Console.error(tag("Encryption failure: " + e));
-                return;
+                return false;
             }
             _client.setState(Client.State.AUTHENTICATED);
             Console.info(tag("AUTH_SUCCESS for client " + _client.id()));
@@ -332,6 +359,8 @@ public final class HandshakeThread extends Thread {
             _client.setState(Client.State.OFFLINE);
             Console.info(tag("AUTH_FAIL for client " + _client.id()));
         }
+
+        return true;
     }
 
     /* Validates and processes REGISTER message.
@@ -339,16 +368,19 @@ public final class HandshakeThread extends Thread {
      * Creates the SessionThread if the REGISTER request is valid.
      *
      * @param dgram The datagram containing the REGISTER.
+     *
+     * @return False if validation failed or we are in an invalid state for
+     * this message type.
      */
-    private void handleRegister(DatagramPacket dgram)
+    private boolean handleRegister(DatagramPacket dgram)
         throws InterruptedException, IOException {
 
         if (_client == null
             || (_client != null
                 && _client.state() != Client.State.AUTHENTICATED)) {
 
-            Console.warn(tag("Received REGISTER in invalid state."));
-            return;
+            Console.debug(tag("Received REGISTER in invalid state."));
+            return false;
         }
 
         Scanner register = new Scanner(new ByteArrayInputStream(
@@ -357,8 +389,8 @@ public final class HandshakeThread extends Thread {
 
         // No client IP
         if (!register.hasNext()) {
-            Console.warn(tag("Receieved truncated REGISTER (expected addr)."));
-            return;
+            Console.debug(tag("Receieved truncated REGISTER (expected addr)."));
+            return false;
         }
         String regAddrString = register.next();
 
@@ -369,7 +401,7 @@ public final class HandshakeThread extends Thread {
         } catch (UnknownHostException e) {
             // bad client IP
             Console.error(tag("Bad REGISTER address: " + regAddrString));
-            return;
+            return false;
         }
 
         // Not necessarily wrong, just weird and worth logging.
@@ -385,22 +417,25 @@ public final class HandshakeThread extends Thread {
         if (!register.hasNextInt()) {
             Console.error(tag("Receieved truncated REGISTER (expected port)."));
             Console.debug(tag("next token: '" + register.next() + "'"));
-            return;
+            return false;
         }
         int regPort = register.nextInt();
         if (regPort < 0 || regPort > 65535) {
             Console.error(tag("Bad REGISTER port number: " + regPort));
-            return;
+            return false;
         }
 
         if (register.hasNext()) {
-            Console.warn(tag("Extra bytes in REGISTER."));
+            Console.debug(tag("Extra bytes in REGISTER."));
         }
 
         // Finally good.
         Console.debug(tag("Received REGISTER " + regAddrString
                           + " " + regPort));
         (new SessionThread(_client, regAddr, regPort)).start();
+        _isComplete = true;
+
+        return true;
     }
 
     // =========================================================================
@@ -426,6 +461,42 @@ public final class HandshakeThread extends Thread {
      */
     public void udpPut(DatagramPacket dgram) throws InterruptedException {
         _workQueue.put(dgram);
+    }
+
+    /* Fetches the next datagram and decrypts it if we are in a state that
+     * requires encryption (AUTHENTICATED).
+     *
+     * @return The datagram packet
+     */
+    private DatagramPacket fetchDatagram()
+        throws InterruptedException, IOException, NullPointerException {
+        // Fetch next datagram
+        DatagramPacket dgram = this.udpPoll();
+        if (dgram == null) {
+            if (_client != null) {
+                Console.debug(
+                    tag("Timed out while waiting for RESPONSE."));
+                throw new NullPointerException();
+            }
+        }
+        if (dgram.getLength() == 0) {
+            Console.debug(tag("Received empty message."));
+            throw new NullPointerException();
+        }
+
+        // From the AUTHENTICATED state onward, all client responses
+        // will be encrypted.
+        if (_client != null
+            && _client.state() == Client.State.AUTHENTICATED) {
+            try {
+                Cryptor.decrypt(_client.cryptKey(), dgram);
+            } catch (Exception e) {
+                Console.error(tag("Encryption failure: " + e));
+                throw new NullPointerException();
+            }
+        }
+
+        return dgram;
     }
 
 }
