@@ -7,6 +7,8 @@ import java.net.InetAddress;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 
+import javax.xml.bind.DatatypeConverter;
+
 public final class SessionThread extends Thread {
     SessionSocket _socket;
     Client _client;
@@ -32,7 +34,14 @@ public final class SessionThread extends Thread {
             this.exitCleanup();
             return;
         }
-
+        //wrote by Jason//
+        try {
+			this.sendRegistered();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+      
         // TODO: everything
         // See HandshakeThread in client and server for inspiration on
         // how to structure this as a state machine.
@@ -75,6 +84,8 @@ public final class SessionThread extends Thread {
         Console.debug(tag("Session thread started."));
         try {
             _socket = new SessionSocket(_client, _clientAddr, _clientPort);
+            System.out.println("tcp session success");
+            
         } catch (SocketTimeoutException e) {
             Console.error(tag("Timeout while establishing session with "
                               + "client."));
@@ -99,5 +110,17 @@ public final class SessionThread extends Thread {
 
         return true;
     }
+    
+    
+  // wrote by Jason//
+    private void sendRegistered() throws Exception{
+    	     Console.debug(tag("REGISTERED is going to send"));
+    		 byte[] msg = _socket.writeMessage("REGISTERED");
+    		 String ckeyString = DatatypeConverter.printHexBinary(msg);
+    		 System.out.println("The sending msg is " + ckeyString );
+    		 _client.setState(Client.State.ONLINE);
+    	
+    }
+  
 
 }

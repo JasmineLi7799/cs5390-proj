@@ -30,7 +30,9 @@ public final class Client {
         CHALLENGE_SENT,
         RESPONSE_RECV,
         AUTHENTICATED,
-        REGISTERED
+        REGISTERED,
+        //JASON
+        ONLINE
         // ...
     }
 

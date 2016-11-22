@@ -35,8 +35,11 @@ public final class SessionThread extends Thread {
 
         Console.debug("Got connection from server.");
         Console.info("Waiting for REGISTERED...");
+        
+        
         this.exitCleanup();
     }
+    
 
     private void exitCleanup() {
         Console.debug("Session thread terminating.");

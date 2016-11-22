@@ -448,6 +448,15 @@ public final class HandshakeThread extends Thread {
         return true;
     }
 
+    /*
+     * Generates a REGISTERED message.
+     */
+    private void sendRegistered(){
+    	
+    }
+    
+    
+    
     // =========================================================================
     // WelcomeSocket IO
     // =========================================================================
