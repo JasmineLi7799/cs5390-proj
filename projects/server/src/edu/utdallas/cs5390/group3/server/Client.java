@@ -32,7 +32,8 @@ public final class Client {
         AUTHENTICATED,
         REGISTERED,
         //JASON
-        ONLINE
+        ONLINE,
+        REGISTERED_SENT
         // ...
     }
 

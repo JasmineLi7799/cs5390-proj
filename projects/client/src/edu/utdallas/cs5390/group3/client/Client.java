@@ -33,6 +33,7 @@ public final class Client {
         REGISTER_SENT,
         //JASON//
         ONLINE,
+        REGISTERED_REV
         // ...
     }
 

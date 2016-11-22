@@ -116,8 +116,7 @@ public final class SessionThread extends Thread {
     private void sendRegistered() throws Exception{
     	     Console.debug(tag("REGISTERED is going to send"));
     		 byte[] msg = _socket.writeMessage("REGISTERED");
-    		 String ckeyString = DatatypeConverter.printHexBinary(msg);
-    		 System.out.println("The sending msg is " + ckeyString );
+    		 System.out.println("The sending msg is " + new String (msg));
     		 _client.setState(Client.State.ONLINE);
     	
     }
