@@ -90,35 +90,23 @@ public final class HandshakeThread extends Thread {
                 }
 
                 if (!this.dispatch(dgram)) {
+                    _client.setState(Client.State.OFFLINE);
                     break;
                 }
 
             } catch (InterruptedException e) {
                 break;
             } catch (IOException e) {
+                try {
+                    _client.setState(Client.State.OFFLINE);
+                } catch (InterruptedException ie) {
+                    break;
+                }
                 Console.fatal("IOException in HandshakeThread: " + e);
                 break;
             }
         }
 
-        this.exitAction();
-    }
-
-    /* Spins the SessionThread if the handshake completed successfully,
-     * or resets the client state to OFFLINE if the handshake was aborted. */
-    private void exitAction() {
-        try {
-            if (_client.state() == Client.State.REGISTER_SENT) {
-                // Start the SessionThread (takes over from here).
-                (new SessionThread()).start();
-            } else if (_client.state() != Client.State.OFFLINE) {
-                Console.warn("Aborted handshake. Resetting "
-                              + "client state to OFFLINE.");
-                _client.setState(Client.State.OFFLINE);
-            }
-        } catch (InterruptedException e) {
-            // Nothing to do; we're about to exit anyway.
-        }
         Console.debug("Handshake thread is terminating.");
     }
 
@@ -286,11 +274,22 @@ public final class HandshakeThread extends Thread {
             return;
         }
 
+        // Start the SessionThread (takes over from here).
+        SessionThread st = new SessionThread();
+        st.start();
+
         // Send the REGISTER message.
         Console.info("Sending REGISTER...");
         Console.debug(payload);
-        _handshakeSock.send(cryptPayload);
-        _client.setState(Client.State.REGISTER_SENT);
+
+        try {
+            _client.setState(Client.State.REGISTER_SENT);
+            _handshakeSock.send(cryptPayload);
+        } catch (IOException e) {
+            Console.debug("In SeesionThread.sendRegister(): " + e);
+            _client.setState(Client.State.OFFLINE);
+            st.interrupt();
+        }
     }
 
     // =========================================================================

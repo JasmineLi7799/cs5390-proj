@@ -18,14 +18,11 @@ public final class SessionThread extends Thread {
         try {
             _socket = new SessionSocket();
             Console.debug("Got connection from server.");
-            // receive Registered
-//            System.out.println("+++++++++++++++++");
+
             byte[] receiveRegistered = _socket.readMessage();
             String registered = new String(receiveRegistered);
-//            System.out.println(registered);
-//            System.out.println("=================");
             if(registered.equals(new String("REGISTERED"))) {
-            	Console.info("Received Registered");
+                Console.info("Received REGISTERED.");
             }
         } catch (SocketTimeoutException e) {
             Console.error("Timeout while waiting for REGISTERED response "
@@ -43,16 +40,17 @@ public final class SessionThread extends Thread {
             return;
         }
 
-//        Console.debug("Got connection from server.");
-        
-//        Console.info("Waiting for REGISTERED...");
-        
-        
         this.exitCleanup();
     }
-    
+
 
     private void exitCleanup() {
-        Console.debug("Session thread terminating.");
+        if (_socket != null) _socket.close();
+        try {
+            _client.setState(Client.State.OFFLINE);
+        } catch (InterruptedException e) {
+            // Nothing to do about this; we're exiting anyway.
+        }
+        Console.debug("Session thread terminated.");
     }
 }

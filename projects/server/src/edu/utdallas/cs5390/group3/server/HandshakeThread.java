@@ -113,7 +113,9 @@ public final class HandshakeThread extends Thread {
                 try {
                     dgram = this.fetchDatagram();
                 } catch (NullPointerException e) {
-                    _client.setState(Client.State.OFFLINE);
+                    if (_client != null) {
+                        _client.setState(Client.State.OFFLINE);
+                    }
                     break;
                 }
 
@@ -230,6 +232,10 @@ public final class HandshakeThread extends Thread {
                 return false;
             }
             // Handshake complete; SessionThread will take it from here.
+            return false;
+        default:
+            Console.debug(tag("Received unknown message type."
+                              + " (delayed, encrypted REGISTER maybe?)"));
             return false;
         }
 
@@ -448,15 +454,7 @@ public final class HandshakeThread extends Thread {
         return true;
     }
 
-    /*
-     * Generates a REGISTERED message.
-     */
-    private void sendRegistered(){
-    	
-    }
-    
-    
-    
+
     // =========================================================================
     // WelcomeSocket IO
     // =========================================================================
@@ -493,8 +491,12 @@ public final class HandshakeThread extends Thread {
         DatagramPacket dgram = this.udpPoll();
         if (dgram == null) {
             if (_client != null) {
+                String op = "RESPONSE";
+                if (_client.state() == Client.State.AUTHENTICATED) {
+                    op = "REGISTER";
+                }
                 Console.debug(
-                    tag("Timed out while waiting for RESPONSE."));
+                    tag("Timed out while waiting for " + op + "."));
                 throw new NullPointerException();
             }
         }

@@ -28,9 +28,18 @@ public final class SessionThread extends Thread {
     // =========================================================================
 
     public void run() {
+        Console.debug(tag("Session thread started. Connection to client..."));
         if (!this.connectToClient()) {
             this.exitCleanup();
             return;
+        }
+
+        //wrote by Jason//
+        try {
+            this.sendRegistered();
+        } catch (Exception e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
 
         // TODO: everything
@@ -75,8 +84,10 @@ public final class SessionThread extends Thread {
         Console.debug(tag("Session thread started."));
         try {
             _socket = new SessionSocket(_client, _clientAddr, _clientPort);
+            Console.debug(tag("Established TCP session to client."));
+
         } catch (SocketTimeoutException e) {
-            Console.error(tag("Timeout while establishing session with "
+            Console.error(tag("Timeout while establishing TCP session with "
                               + "client."));
             try {
                 _client.setState(Client.State.OFFLINE);
@@ -99,7 +110,7 @@ public final class SessionThread extends Thread {
 
         return true;
     }
-    
+
     /**
      * when the client type "history clientB_id"
      * check all the history from this client and return all the history for clientB
@@ -108,11 +119,23 @@ public final class SessionThread extends Thread {
     	String history = "";
     	String input = _inStream.toString();
     	String[] in = input.split(" ");
-    	
+
     	if(in[1]!=null){
     		int clientB = Integer.parseInt(in[1]);
     		history = _client.getHistory(clientB);
     	}
     	return history;
     }
+}
+
+
+    // wrote by Jason//
+    private void sendRegistered() throws Exception{
+        Console.debug(tag("Sending REGISTERED..."));
+        byte[] msg = _socket.writeMessage("REGISTERED");
+        Console.debug(tag("The protocol message sent was: " + new String (msg)));
+        _client.setState(Client.State.ONLINE);
+    }
+
+
 }

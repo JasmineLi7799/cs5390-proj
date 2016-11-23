@@ -90,7 +90,9 @@ public final class Main {
             }
         }
 
-        // Kill all threads in the "client" group.
+        // Kill all threads in the "client" group when Main exits.
+        // (Otherwise the process doesn't quit; you just lose the
+        // interactive client console).
         _client.threadGroup().interrupt();
         Console.close();
     }
@@ -100,7 +102,7 @@ public final class Main {
             @Override
             public void run() {
                 // Kill all threads in the "client" group.
-                _client.threadGroup().interrupt();
+                Client.instance().threadGroup().interrupt();
             }
         }));
     }
