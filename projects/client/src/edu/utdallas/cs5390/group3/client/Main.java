@@ -27,6 +27,7 @@ public final class Main {
         if(args.length > 0) {
             configFileName = args[0];
         }
+        Console.info("Using config file: " + configFileName);
         _client = Client.instance();
         try {
             _client.configure(configFileName);
