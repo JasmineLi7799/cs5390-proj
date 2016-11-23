@@ -15,6 +15,8 @@ import java.lang.NullPointerException;
  * operations of the server (startup, shutdown, initial configuration)
  * and provides access to core data services needed throughout the
  * system (configuration node, client database).
+ * 
+ * 
  */
 public final class Server {
     // Runtime management
@@ -22,10 +24,15 @@ public final class Server {
     private boolean _running;
     private ThreadGroup _threadGroup;
     private Thread _welcomeThread;
+    
 
     // Lookup services
     private ConcurrentHashMap<Integer, Client> _clientDB;
     public Config config;
+    
+    
+    //history list to save all the history between clients,
+    
 
     // =========================================================================
     // Constructor & instance accessor. Initialization

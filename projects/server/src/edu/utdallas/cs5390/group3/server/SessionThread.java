@@ -3,8 +3,8 @@ package edu.utdallas.cs5390.group3.server;
 import edu.utdallas.cs5390.group3.core.Console;
 
 import java.net.InetAddress;
-
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.SocketTimeoutException;
 
 public final class SessionThread extends Thread {
@@ -99,5 +99,20 @@ public final class SessionThread extends Thread {
 
         return true;
     }
-
+    
+    /**
+     * when the client type "history clientB_id"
+     * check all the history from this client and return all the history for clientB
+     */
+    public String getHistory(InputStream _inStream){
+    	String history = "";
+    	String input = _inStream.toString();
+    	String[] in = input.split(" ");
+    	
+    	if(in[1]!=null){
+    		int clientB = Integer.parseInt(in[1]);
+    		history = _client.getHistory(clientB);
+    	}
+    	return history;
+    }
 }

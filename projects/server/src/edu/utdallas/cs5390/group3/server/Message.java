@@ -13,4 +13,15 @@ public final class Message {
 
     public int senderId() { return _senderId; }
     public String content() { return _content; }
+    
+    /**
+     * put the content in the right format as "<session_id> <from: sending client> <chat message>"
+     * this is the format for chat history
+     * @param tag
+     * @return
+     */
+    public String setContent(String tag){
+    	_content = "<from: "+_senderId+ " >"; 
+    	return tag+_content;
+    }
 }

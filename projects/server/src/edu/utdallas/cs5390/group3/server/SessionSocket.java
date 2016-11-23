@@ -21,6 +21,7 @@ public final class SessionSocket {
     private Socket _socket;
     private InputStream _inStream;
     private OutputStream _outStream;
+    
     public SessionSocket(Client client, InetAddress addr, int port)
         throws SocketException, IOException, SocketTimeoutException {
 

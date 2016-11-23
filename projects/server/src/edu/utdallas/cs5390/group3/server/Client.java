@@ -4,6 +4,7 @@ import edu.utdallas.cs5390.group3.core.Cryptor;
 
 import java.lang.String;
 import java.net.InetAddress;
+import java.util.ArrayList;
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -24,6 +25,11 @@ public final class Client {
     private SecretKeySpec _cryptKey;
 
     private State _state;
+    
+    //each client should have a list of chatSession object to get the chat history 
+    private ArrayList<ChatSession> _chatList;
+    
+    
     public static enum State {
         OFFLINE,
         HELLO_RECV,
@@ -59,6 +65,7 @@ public final class Client {
         _id = id;
         _privateKey = k;
         _state = Client.State.OFFLINE;
+        _chatList = new ArrayList<ChatSession>();
     }
 
     // =========================================================================
@@ -90,5 +97,28 @@ public final class Client {
 
     public void setSocket(SessionSocket sock) {
         _socket = sock;
+    }
+    
+    
+    /**
+     * at the end of each session, add the chatSesseion to the chatList 
+     */
+    public void addChat(ChatSession chat){
+    	_chatList.add(chat);
+    }
+    
+    /**
+     * get the right history
+     * check through all the chat session 
+     */
+    public String getHistory(int clientB){
+    	String history="<< HISTORY >>";
+    	for(int i = 0; i < _chatList.size(); i++){
+    		if(_chatList.get(i)._clientA.id() == clientB || _chatList.get(i)._clientB.id() == clientB){
+    			history +="/n";
+    			history +=_chatList.get(i).getHistory();  			
+    		}   		
+    	}	
+    	return history;
     }
 }
