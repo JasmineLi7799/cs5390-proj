@@ -28,7 +28,7 @@ public final class SessionThread extends Thread {
     // =========================================================================
 
     public void run() {
-        Console.debug(tag("Session thread started. Connection to client..."));
+        Console.debug(tag("Session thread started."));
         if (!this.connectToClient()) {
             this.exitCleanup();
             return;
@@ -81,8 +81,10 @@ public final class SessionThread extends Thread {
      * @return True on success, false on failure.
      */
     private boolean connectToClient() {
-        Console.debug(tag("Session thread started."));
         try {
+            Console.debug(tag("Connecting to client at "
+                              + _clientAddr.getHostAddress()
+                              + ":" + _clientPort + "..."));
             _socket = new SessionSocket(_client, _clientAddr, _clientPort);
             Console.debug(tag("Established TCP session to client."));
 
@@ -93,11 +95,9 @@ public final class SessionThread extends Thread {
                 _client.setState(Client.State.OFFLINE);
             } catch (InterruptedException ie) {
             }
-            exitCleanup();
             return false;
         } catch (Exception e) {
             Console.error(tag("While creating socket: " + e));
-            exitCleanup();
             return false;
         }
 

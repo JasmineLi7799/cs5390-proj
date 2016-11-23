@@ -277,16 +277,22 @@ public final class HandshakeThread extends Thread {
         // Start the SessionThread (takes over from here).
         SessionThread st = new SessionThread();
         st.start();
+        // Wait for the SessionThread to reach the listening state.
+        try {
+            st.initLock.acquire();
+            st.initLock.release();
+        } catch (InterruptedException e) {
+            return;
+        }
 
-        // Send the REGISTER message.
+        // Send the encrypted REGISTER message.
         Console.info("Sending REGISTER...");
         Console.debug(payload);
-
         try {
             _client.setState(Client.State.REGISTER_SENT);
             _handshakeSock.send(cryptPayload);
         } catch (IOException e) {
-            Console.debug("In SeesionThread.sendRegister(): " + e);
+            Console.debug("In SessionThread.sendRegister(): " + e);
             _client.setState(Client.State.OFFLINE);
             st.interrupt();
         }

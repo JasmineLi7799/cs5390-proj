@@ -4,19 +4,29 @@ import edu.utdallas.cs5390.group3.core.Console;
 
 import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
+import java.util.concurrent.Semaphore;
 
 public final class SessionThread extends Thread {
     SessionSocket _socket;
     Client _client;
+    public Semaphore initLock;
 
     public SessionThread() {
         _client = Client.instance();
+        this.initLock = new Semaphore(0);
     }
 
     public void run() {
         Console.debug("Session thread started.");
         try {
             _socket = new SessionSocket();
+            // Note: this call releases initLock, signaling to the handshake
+            // thread that it is safe to send the REGISTER message now.
+            //
+            // Without this, it *is* possible for the server to respond
+            // before we get the TCP port open when the server and client
+            // are communicating over loopback.
+            _socket.waitForConnection(initLock);
             Console.debug("Got connection from server.");
             _client.setSessionSock(_socket);
 
@@ -38,6 +48,7 @@ public final class SessionThread extends Thread {
             return;
         } catch (Exception e) {
             Console.error("While creating SessionSocket: " + e);
+            e.printStackTrace();
             this.exitCleanup();
             return;
         }
