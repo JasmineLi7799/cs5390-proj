@@ -126,8 +126,6 @@ public final class SessionThread extends Thread {
     	}
     	return history;
     }
-}
-
 
     // wrote by Jason//
     private void sendRegistered() throws Exception{
