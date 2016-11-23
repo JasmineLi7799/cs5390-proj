@@ -18,11 +18,13 @@ public final class SessionThread extends Thread {
         try {
             _socket = new SessionSocket();
             Console.debug("Got connection from server.");
+            _client.setSessionSock(_socket);
 
             byte[] receiveRegistered = _socket.readMessage();
             String registered = new String(receiveRegistered);
             if(registered.equals(new String("REGISTERED"))) {
                 Console.info("Received REGISTERED.");
+                _client.setState(Client.State.REGISTERED);
             }
         } catch (SocketTimeoutException e) {
             Console.error("Timeout while waiting for REGISTERED response "
@@ -45,6 +47,7 @@ public final class SessionThread extends Thread {
 
 
     private void exitCleanup() {
+        _client.setSessionSock(null);
         if (_socket != null) _socket.close();
         try {
             _client.setState(Client.State.OFFLINE);

@@ -5,14 +5,11 @@ import edu.utdallas.cs5390.group3.core.Console;
 import java.lang.Runtime;
 import java.lang.ThreadGroup;
 
-import java.io.IOException;
 import java.lang.IllegalStateException;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.util.NoSuchElementException;
 
-import java.util.Properties;
-
+import java.util.Scanner;
 import java.io.FileInputStream;
 import java.io.InputStream;
 
@@ -30,7 +27,7 @@ public final class Main {
         if(args.length > 0) {
             configFileName = args[0];
         }
-        Client _client = Client.instance();
+        _client = Client.instance();
         try {
             _client.configure(configFileName);
         } catch (IllegalStateException | NullPointerException e) {
@@ -62,25 +59,12 @@ public final class Main {
 
             // LOG ON command
             else if (command.matches("(?i)^log on")) {
-                // valid only from OFFLINE state
-                Client.State state;
-                try {
-                    state = _client.state();
-                } catch (InterruptedException e) {
-                    break;
-                }
-                if (state != Client.State.OFFLINE) {
-                    Console.error("You are already logged on, or a "
-                                  + "login is already in progress");
-                    continue;
-                }
-                try {
-                    HandshakeThread handshake =
-                        new HandshakeThread();
-                    handshake.start();
-                } catch (SocketException e) {
-                    Console.error("Could not initiate login: " + e);
-                }
+                handleLogOn();
+            }
+
+            // CHAT command
+            else if (command.matches("(?i)^(chat$|chat .*$)")) {
+                handleChat(command);
             }
 
             // Any other input.
@@ -105,6 +89,83 @@ public final class Main {
                 Client.instance().threadGroup().interrupt();
             }
         }));
+    }
+
+    /* Handles "log on" commands from the user.*/
+    private static void handleLogOn() {
+        // valid only from OFFLINE state
+        Client.State state;
+        try {
+            state = _client.state();
+        } catch (InterruptedException e) {
+            return;
+        }
+        if (state != Client.State.OFFLINE) {
+            Console.error("You are already logged on, or a "
+                            + "login is already in progress");
+            return;
+        }
+        try {
+            HandshakeThread handshake =
+                new HandshakeThread();
+            handshake.start();
+        } catch (SocketException e) {
+            Console.error("Could not initiate login: " + e);
+        }
+    }
+
+    private static void handleChat(String cmd) {
+        // Check syntax
+        if (!cmd.matches("(?i)^chat [1-9][0-9]* \\S.*$")) {
+            Console.error("Bad \"chat\" syntax."
+                          + " Usage: CHAT <session id> <message>");
+            return;
+        }
+
+        // Check for valid state (requires an active chat session)
+        Client.State state;
+        try {
+            state = _client.state();
+        } catch (InterruptedException e) {
+            return;
+        }
+        if (state != Client.State.ACTIVE_CHAT) {
+            Console.error("You do not have a chat session yet."
+                          + " Try \"CONNECT <user id>\".");
+            return;
+        }
+
+        // Parse the command
+        Scanner cmdScan = new Scanner(cmd);
+        // Skip over "chat" to get to the chat session id.
+        cmdScan.next();
+        // Get the chat session id
+        int chatId = cmdScan.nextInt();
+        // Get the chat text.
+        String chatText = cmdScan.next();
+
+        // Generate and send the CHAT message in a separate thread so
+        // that the console can immediately accept more input from
+        // the user without waiting for the network IO to complete.
+        //
+        // The thread belongs to _client.threadGroup() and is named
+        // "CHAT worker". All threads need to belong to this ThreadGroup
+        // so that we can kill any outstanding threads when the console
+        // exits.
+        Thread worker = new Thread(
+            _client.threadGroup(),
+            new Runnable() {
+                public void run() {
+                    try {
+                        _client.sessionSock().writeMessage(
+                            "CHAT " + chatId + " " + chatText);
+                    } catch (Exception e) {
+                        Console.debug("While sending CHAT: " + e);
+                    }
+                }
+            },
+            "CHAT worker");
+        worker.start();
     }
 
 }

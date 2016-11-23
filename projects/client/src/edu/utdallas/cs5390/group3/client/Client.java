@@ -32,10 +32,12 @@ public final class Client {
         RESPONSE_SENT,
         REGISTER_SENT,
         //JASON//
-        ONLINE,
-        REGISTERED_REV
+        REGISTERED,
+        ACTIVE_CHAT
         // ...
     }
+
+    private SessionSocket _sessionSock;
 
     // =========================================================================
     // Constructor & instance accessor. Initialization
@@ -82,6 +84,7 @@ public final class Client {
     public int id() { return _id; }
     public String privateKey() { return _privateKey; }
     public SecretKeySpec cryptKey() { return _cryptKey; }
+    public SessionSocket sessionSock() { return _sessionSock; }
 
     /* Convenience accessor for the named "client" ThreadGroup. */
     public ThreadGroup threadGroup() {
@@ -104,5 +107,9 @@ public final class Client {
 
     public void setCryptKey(byte[] key) {
         _cryptKey = new SecretKeySpec(key, "AES");
+    }
+
+    public void setSessionSock(SessionSocket sock) {
+        _sessionSock = sock;
     }
 }
