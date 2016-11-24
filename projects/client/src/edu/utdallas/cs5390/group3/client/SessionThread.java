@@ -12,12 +12,19 @@ public final class SessionThread extends Thread {
     public Semaphore initLock;
 
     public SessionThread() {
+        super(Client.instance().threadGroup(), "session");
         _client = Client.instance();
         this.initLock = new Semaphore(0);
     }
 
+    @Override
+    public void interrupt() {
+        Console.debug("Interrupted.");
+        super.interrupt();
+    }
+
+    @Override
     public void run() {
-        Console.debug("Session thread started.");
         try {
             _socket = new SessionSocket();
             // Note: this call releases initLock, signaling to the handshake
@@ -51,6 +58,16 @@ public final class SessionThread extends Thread {
             e.printStackTrace();
             this.exitCleanup();
             return;
+        }
+
+        while (!Thread.currentThread().isInterrupted()) {
+            // TODO: protocol message fetch & process loop
+            // For now, the thread does nothing.
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                break;
+            }
         }
 
         this.exitCleanup();

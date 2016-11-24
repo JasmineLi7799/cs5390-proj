@@ -18,6 +18,7 @@ public final class SessionThread extends Thread {
     // =========================================================================
 
     public SessionThread(Client client, InetAddress addr, int port) {
+        super(Server.instance().threadGroup(), "client session " + client.id());
         _client = client;
         _clientAddr = addr;
         _clientPort = port;
@@ -131,7 +132,6 @@ public final class SessionThread extends Thread {
     private void sendRegistered() throws Exception{
         Console.debug(tag("Sending REGISTERED..."));
         byte[] msg = _socket.writeMessage("REGISTERED");
-        Console.debug(tag("The protocol message sent was: " + new String (msg)));
         _client.setState(Client.State.ONLINE);
     }
 
