@@ -19,7 +19,8 @@ import java.net.InetSocketAddress;
 public final class Main {
     private static Client _client = null;
     private static InetSocketAddress _serverSockAddr = null;
-
+    private static String cmd;
+    public Scanner input = new Scanner(System.in);
     public static void main(String[] args) throws Exception {
 
         // Create and configure Client
@@ -114,12 +115,12 @@ public final class Main {
             Console.error("Could not initiate login: " + e);
         }
     }
-
+   
     private static void handleChat(String cmd) {
         // Check syntax
-        if (!cmd.matches("(?i)^chat [1-9][0-9]* \\S.*$")) {
+        if (!cmd.matches("(?i)^chat [1-9][0-9]*$")) {
             Console.error("Bad \"chat\" syntax."
-                          + " Usage: CHAT <session id> <message>");
+                          + " Usage: CHAT <client id>");
             return;
         }
 
@@ -127,23 +128,23 @@ public final class Main {
         Client.State state;
         try {
             state = _client.state();
+            System.out.println("==================");
+            _client.getState();
         } catch (InterruptedException e) {
             return;
         }
-        if (state != Client.State.ACTIVE_CHAT) {
-            Console.error("You do not have a chat session yet."
-                          + " Try \"CONNECT <user id>\".");
+        if (state != Client.State.REGISTERED) {
+            Console.error("You are not online. Try \"log on \".");
             return;
         }
 
         // Parse the command
-        Scanner cmdScan = new Scanner(cmd).useDelimiter("");
+        Scanner cmdScan = new Scanner(cmd).useDelimiter(" ");
         // Skip over "chat" to get to the chat session id.
         cmdScan.next();
         // Get the chat session id
-        final int chatId = cmdScan.nextInt();
-        // Get the chat text.
-        final String chatText = cmdScan.nextLine();
+        final int clientBId = cmdScan.nextInt();
+        System.out.println("clientBId is " + clientBId);
 
         // Generate and send the CHAT message in a separate thread so
         // that the console can immediately accept more input from
@@ -159,7 +160,7 @@ public final class Main {
                 public void run() {
                     try {
                         _client.sessionSock().writeMessage(
-                            "CHAT " + chatId + " " + chatText);
+                            "CONNECT " + clientBId);
                     } catch (Exception e) {
                         Console.debug("While sending CHAT: " + e);
                     }
@@ -167,6 +168,11 @@ public final class Main {
             },
             "CHAT worker");
         worker.start();
+    }
+    
+    public String getCommand() throws Exception{
+        String command = input.nextLine();
+    	return command;
     }
 
 }

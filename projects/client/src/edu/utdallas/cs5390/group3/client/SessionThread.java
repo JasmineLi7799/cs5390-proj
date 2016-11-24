@@ -4,6 +4,7 @@ import edu.utdallas.cs5390.group3.core.Console;
 
 import java.net.InetSocketAddress;
 import java.net.SocketTimeoutException;
+import java.util.Scanner;
 import java.util.concurrent.Semaphore;
 
 public final class SessionThread extends Thread {
@@ -42,6 +43,9 @@ public final class SessionThread extends Thread {
             if(registered.equals(new String("REGISTERED"))) {
                 Console.info("Received REGISTERED.");
                 _client.setState(Client.State.REGISTERED);
+                _client.getState();
+                System.out.println("type the id");
+               
             }
         } catch (SocketTimeoutException e) {
             Console.error("Timeout while waiting for REGISTERED response "

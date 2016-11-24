@@ -112,4 +112,9 @@ public final class Client {
     public void setSessionSock(SessionSocket sock) {
         _sessionSock = sock;
     }
+    
+    public void getState(){
+    	String s = _state.toString();
+    	System.out.println("The current state is " + s);
+    }
 }
