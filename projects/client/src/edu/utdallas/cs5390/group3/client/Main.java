@@ -137,13 +137,13 @@ public final class Main {
         }
 
         // Parse the command
-        Scanner cmdScan = new Scanner(cmd);
+        Scanner cmdScan = new Scanner(cmd).useDelimiter("");
         // Skip over "chat" to get to the chat session id.
         cmdScan.next();
         // Get the chat session id
         final int chatId = cmdScan.nextInt();
         // Get the chat text.
-        final String chatText = cmdScan.next();
+        final String chatText = cmdScan.nextLine();
 
         // Generate and send the CHAT message in a separate thread so
         // that the console can immediately accept more input from
