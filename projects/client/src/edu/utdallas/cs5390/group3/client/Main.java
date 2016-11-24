@@ -141,9 +141,9 @@ public final class Main {
         // Skip over "chat" to get to the chat session id.
         cmdScan.next();
         // Get the chat session id
-        int chatId = cmdScan.nextInt();
+        final int chatId = cmdScan.nextInt();
         // Get the chat text.
-        String chatText = cmdScan.next();
+        final String chatText = cmdScan.next();
 
         // Generate and send the CHAT message in a separate thread so
         // that the console can immediately accept more input from
