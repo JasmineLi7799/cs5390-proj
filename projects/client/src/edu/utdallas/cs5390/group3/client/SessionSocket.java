@@ -128,7 +128,7 @@ public final class SessionSocket {
             for(int i = 0; i < len; i++){
                 tmpMsg[i] = _msg[i];
             }
-            _msgBuffer.add(tmpMsg);
+            _msgBuffer.add(Cryptor.decrypt(_client.cryptKey(), tmpMsg));
             // System.out.println("len is "+len);
         } while (len == 16);
 
@@ -142,8 +142,8 @@ public final class SessionSocket {
 
     // wrote by Jason
     public byte[] writeMessage(String message) throws Exception{
-        // byte[] msg = Cryptor.encrypt(_client.cryptKey(), message);
-        byte[] msg = message.getBytes();
+        byte[] msg = Cryptor.encrypt(_client.cryptKey(), message.getBytes());
+        //byte[] msg = message.getBytes();
         _outStream.write(message.getBytes());;
         return msg;
     }
