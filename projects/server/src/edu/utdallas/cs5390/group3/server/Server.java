@@ -70,6 +70,7 @@ public final class Server {
 
         _clientDB = new ConcurrentHashMap<Integer, Client>();
         int[] uids = this.config.userIDs();
+        Client.setSessionId(uids.length);
         String[] pkeys = this.config.privateKeys();
         for(int i = 0; i < uids.length; i++) {
             Client c = new Client(uids[i], pkeys[i]);

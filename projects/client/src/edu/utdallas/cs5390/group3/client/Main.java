@@ -161,6 +161,7 @@ public final class Main {
                     try {
                         _client.sessionSock().writeMessage(
                             "CONNECT " + clientBId);
+                        System.out.println("The CONNECT message has sent");
                     } catch (Exception e) {
                         Console.debug("While sending CHAT: " + e);
                     }

@@ -30,6 +30,8 @@ public final class SessionThread extends Thread {
 
     public void run() {
         Console.debug(tag("Session thread started."));
+        int sessionID = _client.getSessionID(_client.id());
+        System.out.println("========== The session id is " + sessionID);
         if (!this.connectToClient()) {
             this.exitCleanup();
             return;
@@ -38,6 +40,19 @@ public final class SessionThread extends Thread {
         //wrote by Jason//
         try {
             this.sendRegistered();
+            _client.setState(Client.State.REGISTERED_SENT);
+            System.out.println("==========");
+            _client.getState();
+            
+            byte[] mesRev = _socket.readMessage();
+            String message = new String (mesRev);
+            System.out.println("The received message is "+ message);
+            String[] msg = message.split("\\s+");
+            if(msg[0].equals(new String("CONNECT"))){
+            	System.out.println("Connect received");
+            	
+            }
+           
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -134,6 +149,6 @@ public final class SessionThread extends Thread {
         byte[] msg = _socket.writeMessage("REGISTERED");
         _client.setState(Client.State.ONLINE);
     }
-
+    
 
 }

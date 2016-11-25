@@ -5,6 +5,7 @@ import edu.utdallas.cs5390.group3.core.Cryptor;
 import java.lang.String;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -21,6 +22,8 @@ import javax.crypto.spec.SecretKeySpec;
 public final class Client {
     // Basic client info.
     private int _id;
+    // check which session id is valid
+    private static HashMap<Integer, Boolean> sessionIDmp = new HashMap<Integer, Boolean>();
     private String _privateKey;
     private SecretKeySpec _cryptKey;
 
@@ -93,13 +96,31 @@ public final class Client {
             _state = newState;
         }
     }
-
+    
     public void setCryptKey(byte[] key) {
         _cryptKey = new SecretKeySpec(key, "AES");
     }
 
     public void setSocket(SessionSocket sock) {
         _socket = sock;
+    }
+    
+    public static void setSessionId(int num){
+    	for(int i=0; i<num;){
+    		sessionIDmp.put(++i, false);
+    	}
+    }
+    
+    public int getSessionID(int clientID){
+    	int i=1;
+    	while(sessionIDmp.get(i)==true){
+    		i++;
+    	}
+    	return i;
+    }
+    public void getState(){
+    	String s = _state.toString();
+    	System.out.println("The current state is " + s);
     }
     
     
