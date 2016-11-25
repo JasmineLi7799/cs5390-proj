@@ -61,7 +61,8 @@ public final class SessionThread extends Thread {
             System.out.println("The start1 is "+ startMsg1);
             String startMsg2 = "START " + sessionID + " " + Integer.toString(_client.id());
             System.out.println("The start2 is "+ startMsg2);
-//            _socket.writeMessage(startMsg1);
+            _socket.writeMessage(startMsg1);
+//            byte[] tmp = _socket.writeMessage(startMsg1);
 //            _socket.getSocket(chatID).writeMessage(startMsg2);
            
         } catch (Exception e) {

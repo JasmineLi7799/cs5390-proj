@@ -162,6 +162,12 @@ public final class Main {
                         _client.sessionSock().writeMessage(
                             "CONNECT " + clientBId);
                         System.out.println("The CONNECT message has sent");
+                        
+                     // read Start message
+                        byte[] revStart = _client.sessionSock().readMessage();
+//                        System.out.println(revStart);
+                        String startMsg = new String(revStart);
+                        System.out.println("The start msg is " + startMsg);
                     } catch (Exception e) {
                         Console.debug("While sending CHAT: " + e);
                     }

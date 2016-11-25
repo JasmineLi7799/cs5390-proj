@@ -45,10 +45,7 @@ public final class SessionThread extends Thread {
                 _client.setState(Client.State.REGISTERED);
                 _client.getState();
                 System.out.println("type the id");
-                // read Start message
-//               byte[] revStart = _socket.readMessage();
-//               String startMsg = new String(revStart);
-//               System.out.println("The start msg is " + startMsg);
+                
             }
         } catch (SocketTimeoutException e) {
             Console.error("Timeout while waiting for REGISTERED response "
