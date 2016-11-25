@@ -31,6 +31,9 @@ public final class SessionThread extends Thread {
     public void run() {
         Console.debug(tag("Session thread started."));
         int sessionID = _client.getSessionID(_client.id());
+        _client.sessionIDisTrue(sessionID);
+        System.out.println("========The sessionID state is " + _client.getSessionIDstate(sessionID));
+    
         System.out.println("========== The session id is " + sessionID);
         if (!this.connectToClient()) {
             this.exitCleanup();
@@ -49,9 +52,9 @@ public final class SessionThread extends Thread {
             System.out.println("The received message is "+ message);
             String[] msg = message.split("\\s+");
             if(msg[0].equals(new String("CONNECT"))){
-            	System.out.println("Connect received");
-            	
+            	System.out.println("Connect Message received");
             }
+            
            
         } catch (Exception e) {
             // TODO Auto-generated catch block

@@ -37,6 +37,7 @@ public final class SessionSocket {
         _inStream = _socket.getInputStream();
         _outStream = _socket.getOutputStream();
     }
+    
 
     public byte[] readMessage() throws Exception {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();

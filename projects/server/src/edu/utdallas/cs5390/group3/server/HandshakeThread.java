@@ -450,7 +450,12 @@ public final class HandshakeThread extends Thread {
         _regAddr = regAddr;
         _regPort = regPort;
         _isComplete = true;
-
+        StringBuilder ipandPort = new StringBuilder();
+        ipandPort.append(regAddr.toString());
+        ipandPort.append(" ");
+        ipandPort.append(regPort);
+        System.out.println("++++++++++ the ip&port is " +ipandPort.toString());
+        _client.setIPmap(_client.id(), ipandPort.toString());
         return true;
     }
 

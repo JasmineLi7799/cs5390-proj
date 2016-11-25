@@ -24,6 +24,8 @@ public final class Client {
     private int _id;
     // check which session id is valid
     private static HashMap<Integer, Boolean> sessionIDmp = new HashMap<Integer, Boolean>();
+    // map clientID to client ip address and port number
+    private static HashMap<Integer, String> idMapIPandPort = new HashMap<Integer, String>();
     private String _privateKey;
     private SecretKeySpec _cryptKey;
 
@@ -111,6 +113,12 @@ public final class Client {
     	}
     }
     
+    public void sessionIDisTrue(int sessionID){
+    	sessionIDmp.put(sessionID, true);
+    }
+    public boolean getSessionIDstate(int sessionID){
+    	return sessionIDmp.get(sessionID);
+    }
     public int getSessionID(int clientID){
     	int i=1;
     	while(sessionIDmp.get(i)==true){
@@ -123,6 +131,13 @@ public final class Client {
     	System.out.println("The current state is " + s);
     }
     
+    public void setIPmap(int clientid, String ipAndPort){
+    	idMapIPandPort.put(clientid, ipAndPort);
+    }
+    
+    public String getIPandPort(int clientid){
+    	return idMapIPandPort.get(clientid);
+    }
     
     /**
      * at the end of each session, add the chatSesseion to the chatList 
