@@ -65,12 +65,13 @@ public final class SessionThread extends Thread {
             // because we need two laptop to check the correctness of UNREACHABLE msg,
             // I just use the following statement to send start msg.
             
-            _socket.writeMessage(startMsg1);
+//            _socket.writeMessage(startMsg1);
             
             // if the chat client state is REGISTERED_SENT, that means the client is available
             // other state means that the client is not available. then send unreachable message
 //            if(Server.getClient(Integer.parseInt(chatID)).getState().equals(new String("REGISTERED_SENT"))){
 //            	_socket.writeMessage(startMsg1);
+//            	_socket.getSocket(chatID).writeMessage(startMsg2);
 //            	_client.setState(Client.State.ACTIVE_CHAT);
 //            	Server.getClient(Integer.parseInt(chatID)).setState(Client.State.ACTIVE_CHAT);
 //            }else{
@@ -78,8 +79,6 @@ public final class SessionThread extends Thread {
 //            	_socket.writeMessage(unreachMsg);
 //            }
             
-//            byte[] tmp = _socket.writeMessage(startMsg1);
-//            _socket.getSocket(chatID).writeMessage(startMsg2);
            
         } catch (Exception e) {
             // TODO Auto-generated catch blosck
