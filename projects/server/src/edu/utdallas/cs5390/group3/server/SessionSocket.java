@@ -15,7 +15,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 
 import java.util.Arrays;
-
+import java.util.HashMap;
 import java.nio.charset.StandardCharsets;
 
 import java.nio.ByteBuffer;
@@ -26,19 +26,26 @@ public final class SessionSocket {
     private Socket _socket;
     private InputStream _inStream;
     private OutputStream _outStream;
-
+    private static HashMap<Integer, SessionSocket> idMapSockt = new HashMap<Integer, SessionSocket>();
     public SessionSocket(Client client, InetAddress addr, int port)
         throws SocketException, IOException, SocketTimeoutException {
         _server = Server.instance();
         _client = client;
         // dest addr, dest port, src addr, src port (0 = ephemeral)
         _socket = new Socket(addr, port, _server.config.bindAddr(), 0);
-
+        
         _inStream = _socket.getInputStream();
         _outStream = _socket.getOutputStream();
     }
     
+    public SessionSocket getSocket(String clientID){
+    	return idMapSockt.get(_client.id());
+    }
 
+    public void setSocket(int clientId, SessionSocket socket){
+    	idMapSockt.put(clientId, socket);
+    }
+    
     public byte[] readMessage() throws Exception {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 

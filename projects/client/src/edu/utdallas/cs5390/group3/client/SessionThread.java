@@ -37,7 +37,7 @@ public final class SessionThread extends Thread {
             _socket.waitForConnection(initLock);
             Console.debug("Got connection from server.");
             _client.setSessionSock(_socket);
-
+            
             byte[] receiveRegistered = _socket.readMessage();
             String registered = new String(receiveRegistered);
             if(registered.equals(new String("REGISTERED"))) {
@@ -45,7 +45,10 @@ public final class SessionThread extends Thread {
                 _client.setState(Client.State.REGISTERED);
                 _client.getState();
                 System.out.println("type the id");
-               
+                // read Start message
+//               byte[] revStart = _socket.readMessage();
+//               String startMsg = new String(revStart);
+//               System.out.println("The start msg is " + startMsg);
             }
         } catch (SocketTimeoutException e) {
             Console.error("Timeout while waiting for REGISTERED response "

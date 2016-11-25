@@ -55,9 +55,17 @@ public final class SessionThread extends Thread {
             	System.out.println("Connect Message received");
             }
             
+            // send start msg to client
+            String chatID = msg[1];
+            String startMsg1 = "START " + sessionID + " " + chatID;
+            System.out.println("The start1 is "+ startMsg1);
+            String startMsg2 = "START " + sessionID + " " + Integer.toString(_client.id());
+            System.out.println("The start2 is "+ startMsg2);
+//            _socket.writeMessage(startMsg1);
+//            _socket.getSocket(chatID).writeMessage(startMsg2);
            
         } catch (Exception e) {
-            // TODO Auto-generated catch block
+            // TODO Auto-generated catch blosck
             e.printStackTrace();
         }
 
@@ -105,6 +113,7 @@ public final class SessionThread extends Thread {
                               + _clientAddr.getHostAddress()
                               + ":" + _clientPort + "..."));
             _socket = new SessionSocket(_client, _clientAddr, _clientPort);
+            _socket.setSocket(_client.id(), _socket);
             Console.debug(tag("Established TCP session to client."));
 
         } catch (SocketTimeoutException e) {
