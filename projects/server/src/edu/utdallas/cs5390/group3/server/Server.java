@@ -27,7 +27,7 @@ public final class Server {
     
 
     // Lookup services
-    private ConcurrentHashMap<Integer, Client> _clientDB;
+    private static ConcurrentHashMap<Integer, Client> _clientDB;
     public Config config;
     
     
@@ -76,6 +76,10 @@ public final class Server {
             Client c = new Client(uids[i], pkeys[i]);
             _clientDB.put(c.id(), c);
         }
+    }
+    
+    public static Client getClient(int clientId){
+    	return _clientDB.get(clientId);
     }
 
 

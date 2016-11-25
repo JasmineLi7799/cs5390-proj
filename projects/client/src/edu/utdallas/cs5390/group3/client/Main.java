@@ -164,10 +164,19 @@ public final class Main {
                         System.out.println("The CONNECT message has sent");
                         
                      // read Start message
+                        
                         byte[] revStart = _client.sessionSock().readMessage();
 //                        System.out.println(revStart);
                         String startMsg = new String(revStart);
-                        System.out.println("The start msg is " + startMsg);
+                        String[] msg = startMsg.split("\\s+");
+                        if(msg[0].equals(new String("START"))){
+                        	System.out.println("The start msg is " + startMsg);
+                            System.out.println("------------------------");
+                            System.out.println("Chat Started");
+                        }else if(msg[0].equals(new String("UNREACHABLE"))){
+                        	System.out.println("Correspondent unreachable");
+                        }
+                        
                     } catch (Exception e) {
                         Console.debug("While sending CHAT: " + e);
                     }

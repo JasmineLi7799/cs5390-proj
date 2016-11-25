@@ -45,7 +45,7 @@ public final class SessionThread extends Thread {
             this.sendRegistered();
             _client.setState(Client.State.REGISTERED_SENT);
             System.out.println("==========");
-            _client.getState();
+            System.out.println("The client state is "+ _client.getState());
             
             byte[] mesRev = _socket.readMessage();
             String message = new String (mesRev);
@@ -61,7 +61,23 @@ public final class SessionThread extends Thread {
             System.out.println("The start1 is "+ startMsg1);
             String startMsg2 = "START " + sessionID + " " + Integer.toString(_client.id());
             System.out.println("The start2 is "+ startMsg2);
+            
+            // because we need two laptop to check the correctness of UNREACHABLE msg,
+            // I just use the following statement to send start msg.
+            
             _socket.writeMessage(startMsg1);
+            
+            // if the chat client state is REGISTERED_SENT, that means the client is available
+            // other state means that the client is not available. then send unreachable message
+//            if(Server.getClient(Integer.parseInt(chatID)).getState().equals(new String("REGISTERED_SENT"))){
+//            	_socket.writeMessage(startMsg1);
+//            	_client.setState(Client.State.ACTIVE_CHAT);
+//            	Server.getClient(Integer.parseInt(chatID)).setState(Client.State.ACTIVE_CHAT);
+//            }else{
+//            	String unreachMsg = "UNREACHABLE " + chatID;
+//            	_socket.writeMessage(unreachMsg);
+//            }
+            
 //            byte[] tmp = _socket.writeMessage(startMsg1);
 //            _socket.getSocket(chatID).writeMessage(startMsg2);
            

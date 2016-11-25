@@ -44,7 +44,8 @@ public final class Client {
         REGISTERED,
         //JASON
         ONLINE,
-        REGISTERED_SENT
+        REGISTERED_SENT,
+        ACTIVE_CHAT
         // ...
     }
 
@@ -116,9 +117,11 @@ public final class Client {
     public void sessionIDisTrue(int sessionID){
     	sessionIDmp.put(sessionID, true);
     }
+    
     public boolean getSessionIDstate(int sessionID){
     	return sessionIDmp.get(sessionID);
     }
+    
     public int getSessionID(int clientID){
     	int i=1;
     	while(sessionIDmp.get(i)==true){
@@ -126,9 +129,10 @@ public final class Client {
     	}
     	return i;
     }
-    public void getState(){
+    
+    public String getState(){
     	String s = _state.toString();
-    	System.out.println("The current state is " + s);
+    	return s;
     }
     
     public void setIPmap(int clientid, String ipAndPort){
