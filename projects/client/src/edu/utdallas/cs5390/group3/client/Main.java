@@ -217,7 +217,7 @@ public final class Main {
     }
 
 
-    private static void handleChatSession(String cmd){
+    private static void handleChatSession(final String cmd){
 
     	 // Check for valid state (requires an active chat session)
         Client.State state;
