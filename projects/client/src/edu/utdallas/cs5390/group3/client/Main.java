@@ -20,6 +20,7 @@ public final class Main {
     private static Client _client = null;
     private static InetSocketAddress _serverSockAddr = null;
     private static String cmd;
+    private static int sessionID=0;
     public Scanner input = new Scanner(System.in);
     public static void main(String[] args) throws Exception {
 
@@ -63,10 +64,18 @@ public final class Main {
             else if (command.matches("(?i)^log on")) {
                 handleLogOn();
             }
+            
+            else if (command.matches("(?i)^end chat")){
+            	handleEndChat(command);
+            }
 
             // CHAT command
             else if (command.matches("(?i)^(chat$|chat .*$)")) {
                 handleChat(command);
+            }
+            
+            else if (command.matches("[\\s\\S]*")){
+            	handleChatSession(command);
             }
 
             // Any other input.
@@ -169,6 +178,8 @@ public final class Main {
 //                        System.out.println(revStart);
                         String startMsg = new String(revStart);
                         String[] msg = startMsg.split("\\s+");
+                        sessionID = Integer.parseInt(msg[1]);
+                        System.out.println("The session Id is "+ sessionID);
                         if(msg[0].equals(new String("START"))){
                         	System.out.println("The start msg is " + startMsg);
                             System.out.println("------------------------");
@@ -177,6 +188,111 @@ public final class Main {
                         	System.out.println("Correspondent unreachable");
                         }
                         
+                    } catch (Exception e) {
+                        Console.debug("While sending CHAT: " + e);
+                    }
+                }
+            },
+            "CHAT worker");
+        worker.start();
+    }
+    
+    
+    private static void handleChatSession(String cmd){
+    	
+    	 // Check for valid state (requires an active chat session)
+        Client.State state;
+        try {
+            state = _client.state();
+            System.out.println("==================");
+            _client.getState();
+        } catch (InterruptedException e) {
+            return;
+        }
+        if (state != Client.State.REGISTERED) {
+            Console.error("You are not online. Try \"log on \".");
+            return;
+        }
+
+        // Parse the command
+//        Scanner cmdScan = new Scanner(cmd).useDelimiter(" ");
+        // Skip over "chat" to get to the chat session id.
+//        cmdScan.next();
+        // Get the chat session id
+//        final int clientBId = cmdScan.nextInt();
+//        System.out.println("clientBId is " + clientBId);
+
+        // Generate and send the CHAT message in a separate thread so
+        // that the console can immediately accept more input from
+        // the user without waiting for the network IO to complete.
+        //
+        // The thread belongs to _client.threadGroup() and is named
+        // "CHAT worker". All threads need to belong to this ThreadGroup
+        // so that we can kill any outstanding threads when the console
+        // exits.
+        Thread worker = new Thread(
+            _client.threadGroup(),
+            new Runnable() {
+                public void run() {
+                    try {
+                    	String chatCotent = "CHAT sessionId: " + sessionID + " chat message: " + cmd;
+                        _client.sessionSock().writeMessage(chatCotent);
+                        System.out.println("Chat msg is "+ chatCotent);
+                        System.out.println("The Chat content is "+ cmd);
+                        
+                    } catch (Exception e) {
+                        Console.debug("While sending CHAT: " + e);
+                    }
+                }
+            },
+            "CHAT worker");
+        worker.start();
+    }
+    
+    
+    private static void handleEndChat(String cmd){
+//    	Client.State state;
+//        try {
+//            state = _client.state();
+//            System.out.println("==================");
+//            _client.getState();
+//        } catch (InterruptedException e) {
+//            return;
+//        }
+//        if (state != Client.State.REGISTERED) {
+//            Console.error("You are not online. Try \"log on \".");
+//            return;
+//        }
+    	System.out.println("Client want to end chat session");
+        // Parse the command
+//        Scanner cmdScan = new Scanner(cmd).useDelimiter(" ");
+        // Skip over "chat" to get to the chat session id.
+//        cmdScan.next();
+        // Get the chat session id
+//        final int clientBId = cmdScan.nextInt();
+//        System.out.println("clientBId is " + clientBId);
+
+        // Generate and send the CHAT message in a separate thread so
+        // that the console can immediately accept more input from
+        // the user without waiting for the network IO to complete.
+        //
+        // The thread belongs to _client.threadGroup() and is named
+        // "CHAT worker". All threads need to belong to this ThreadGroup
+        // so that we can kill any outstanding threads when the console
+        // exits.
+        Thread worker = new Thread(
+            _client.threadGroup(),
+            new Runnable() {
+                public void run() {
+                    try {
+                    	String chatCotent = "END_REQUEST " + sessionID;
+                        _client.sessionSock().writeMessage(chatCotent);
+                        System.out.println("END_REQUEST has sent to server");
+                        
+                        byte[] endNotif = _client.sessionSock().readMessage();
+                        String notif = new String(endNotif);
+                        System.out.println("the end notification is "+ notif);
+                        System.out.println("Chat ended");
                     } catch (Exception e) {
                         Console.debug("While sending CHAT: " + e);
                     }
