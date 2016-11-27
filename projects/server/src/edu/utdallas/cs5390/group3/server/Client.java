@@ -30,11 +30,11 @@ public final class Client {
     private SecretKeySpec _cryptKey;
 
     private State _state;
-    
-    //each client should have a list of chatSession object to get the chat history 
+
+    //each client should have a list of chatSession object to get the chat history
     private ArrayList<ChatSession> _chatList;
-    
-    
+
+
     public static enum State {
         OFFLINE,
         HELLO_RECV,
@@ -99,7 +99,7 @@ public final class Client {
             _state = newState;
         }
     }
-    
+
     public void setCryptKey(byte[] key) {
         _cryptKey = new SecretKeySpec(key, "AES");
     }
@@ -107,21 +107,21 @@ public final class Client {
     public void setSocket(SessionSocket sock) {
         _socket = sock;
     }
-    
+
     public static void setSessionId(int num){
     	for(int i=0; i<num;){
     		sessionIDmp.put(++i, false);
     	}
     }
-    
+
     public void sessionIDisTrue(int sessionID){
     	sessionIDmp.put(sessionID, true);
     }
-    
+
     public boolean getSessionIDstate(int sessionID){
     	return sessionIDmp.get(sessionID);
     }
-    
+
     public int getSessionID(int clientID){
     	int i=1;
     	while(sessionIDmp.get(i)==true){
@@ -129,39 +129,39 @@ public final class Client {
     	}
     	return i;
     }
-    
+
     public String getState(){
     	String s = _state.toString();
     	return s;
     }
-    
+
     public void setIPmap(int clientid, String ipAndPort){
     	idMapIPandPort.put(clientid, ipAndPort);
     }
-    
+
     public String getIPandPort(int clientid){
     	return idMapIPandPort.get(clientid);
     }
-    
+
     /**
-     * at the end of each session, add the chatSesseion to the chatList 
+     * at the end of each session, add the chatSesseion to the chatList
      */
     public void addChat(ChatSession chat){
     	_chatList.add(chat);
     }
-    
+
     /**
      * get the right history
-     * check through all the chat session 
+     * check through all the chat session
      */
     public String getHistory(int clientB){
     	String history="<< HISTORY >>";
     	for(int i = 0; i < _chatList.size(); i++){
     		if(_chatList.get(i)._clientA.id() == clientB || _chatList.get(i)._clientB.id() == clientB){
     			history +="/n";
-    			history +=_chatList.get(i).getHistory();  			
-    		}   		
-    	}	
+    			history +=_chatList.get(i).getHistory();
+    		}
+    	}
     	return history;
     }
 }

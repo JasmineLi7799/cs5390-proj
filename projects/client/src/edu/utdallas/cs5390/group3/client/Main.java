@@ -60,7 +60,7 @@ public final class Main {
         Main.registerShutdownHook();
 
         Console.info("Chat client initialized.");
-        Console.clientPrompt();
+        Console.info("Type 'log on' to begin, 'quit' or 'exit' to exit.");
 
         while (!Thread.interrupted()) {
             String command;

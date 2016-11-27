@@ -35,17 +35,14 @@ public final class SessionThread extends Thread {
             // before we get the TCP port open when the server and client
             // are communicating over loopback.
             _socket.waitForConnection(initLock);
-            Console.debug("Got connection from server.");
             _client.setSessionSock(_socket);
-            
+
             byte[] receiveRegistered = _socket.readMessage();
             String registered = new String(receiveRegistered);
             if(registered.equals(new String("REGISTERED"))) {
-                Console.info("Received REGISTERED.");
+                Console.info("You are now online. Type \"chat <client id>\""
+                             + " to start a chat session.");
                 _client.setState(Client.State.REGISTERED);
-                _client.getState();
-                Console.clientPrompt();
-                
             }
         } catch (SocketTimeoutException e) {
             Console.error("Timeout while waiting for REGISTERED response "

@@ -279,7 +279,7 @@ public final class HandshakeThread extends Thread {
 
         // Set client. Send response.
         _client = client;
-        Console.info(tag("Received HELLO."));
+        Console.info(tag("Received HELLO from client " + _client.id()));
         this.sendChallenge();
 
         _client.setState(Client.State.CHALLENGE_SENT);
@@ -298,16 +298,13 @@ public final class HandshakeThread extends Thread {
         // Construct the challenge packet payload.
         String payload = "CHALLENGE " + rand;
 
-        // Send the challenge
-        Console.debug(tag("Sending " + payload));
-
         // Set the encryption key for post-auth communication.
         byte[] ckey = Cryptor.hash2(_client.privateKey(), randBytes);
         String ckeyString = DatatypeConverter.printHexBinary(ckey);
-        Console.debug(tag("Setting client cryptkey: " + ckeyString));
         _client.setCryptKey(ckey);
-
+        // Save XRES
         _xres = Cryptor.hash1(_client.privateKey(), randBytes);
+        // Send the challenge
         _welcomeSock.send(payload, _clientAddr, _clientPort);
     }
 
@@ -353,8 +350,6 @@ public final class HandshakeThread extends Thread {
         if (response.hasNext()) {
             Console.debug(tag("Extra bytes in RESPONSE."));
         }
-
-        Console.debug(tag("Received RESPONSE " + resString));
 
         byte[] res = DatatypeConverter.parseHexBinary(resString);
         if (Arrays.equals(res, _xres)) {
@@ -431,7 +426,6 @@ public final class HandshakeThread extends Thread {
         // Validate port
         if (!register.hasNextInt()) {
             Console.error(tag("Receieved truncated REGISTER (expected port)."));
-            Console.debug(tag("next token: '" + register.next() + "'"));
             return false;
         }
         int regPort = register.nextInt();
@@ -445,17 +439,9 @@ public final class HandshakeThread extends Thread {
         }
 
         // Finally good.
-        Console.debug(tag("Received REGISTER " + regAddrString
-                          + " " + regPort));
         _regAddr = regAddr;
         _regPort = regPort;
         _isComplete = true;
-        StringBuilder ipandPort = new StringBuilder();
-        ipandPort.append(regAddr.toString());
-        ipandPort.append(" ");
-        ipandPort.append(regPort);
-        System.out.println("++++++++++ the ip&port is " +ipandPort.toString());
-        _client.setIPmap(_client.id(), ipandPort.toString());
         return true;
     }
 

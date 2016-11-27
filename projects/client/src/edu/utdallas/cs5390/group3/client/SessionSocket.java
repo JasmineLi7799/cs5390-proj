@@ -168,7 +168,7 @@ public final class SessionSocket {
 //        _outStream.write(cryptMsg);
 //        return cryptMsg;
 //    }
-    
+
     public byte[] readMessage() throws Exception{
         Queue<byte[]> _msgBuffer = new LinkedList<byte[]>();
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -191,7 +191,7 @@ public final class SessionSocket {
         }
         return bos.toByteArray();
     }
-    
+
     public byte[] writeMessage(String message) throws Exception{
         byte[] msg = message.getBytes();
         _outStream.write(message.getBytes());;

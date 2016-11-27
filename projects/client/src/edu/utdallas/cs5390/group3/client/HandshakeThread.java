@@ -70,7 +70,8 @@ public final class HandshakeThread extends Thread {
         } catch (InterruptedException e) {
             return;
         }
-        Console.info("Initiated login. Waiting for RESPONSE...");
+        Console.info("Initiated login.");
+        Console.debug("Waiting for CHALLENGE...");
 
         while (!Thread.interrupted()) {
             try {
@@ -190,12 +191,10 @@ public final class HandshakeThread extends Thread {
         byte[] rand = DatatypeConverter.parseHexBinary(randString);
         byte[] ckey = Cryptor.hash2(_client.privateKey(), rand);
         String ckeyString = DatatypeConverter.printHexBinary(ckey);
-        Console.debug("Setting cryptkey: " + ckeyString);
         _client.setCryptKey(ckey);
 
-        Console.info("Received CHALLENGE...");
-        Console.debug("rand = " + randString);
 
+        Console.debug("Received CHALLENGE. Sending RESPONSE...");
         sendResponse(rand);
         return true;
     }
@@ -218,8 +217,6 @@ public final class HandshakeThread extends Thread {
             _client.id(),
             res);
 
-        Console.info("Sending RESPONSE...");
-        Console.debug(payload);
         // Send the response
         _handshakeSock.send(payload);
 
@@ -238,7 +235,7 @@ public final class HandshakeThread extends Thread {
             Console.warn("Received AUTH_SUCCESS in invalid state.");
             return false;
         }
-        Console.info("Received AUTH_SUCCESS...");
+        Console.debug("Received AUTH_SUCCESS. Sending REGISTERED...");
         this.sendRegister();
         return true;
     }
@@ -286,8 +283,6 @@ public final class HandshakeThread extends Thread {
         }
 
         // Send the encrypted REGISTER message.
-        Console.info("Sending REGISTER...");
-        Console.debug(payload);
         try {
             _client.setState(Client.State.REGISTER_SENT);
             _handshakeSock.send(cryptPayload);

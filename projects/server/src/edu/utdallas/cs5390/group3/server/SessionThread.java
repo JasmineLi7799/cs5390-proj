@@ -34,7 +34,7 @@ public final class SessionThread extends Thread {
         int sessionID = _client.getSessionID(_client.id());
         _client.sessionIDisTrue(sessionID);
         System.out.println("========The sessionID state is " + _client.getSessionIDstate(sessionID));
-    
+
         System.out.println("========== The session id is " + sessionID);
         if (!this.connectToClient()) {
             this.exitCleanup();
@@ -45,9 +45,7 @@ public final class SessionThread extends Thread {
         try {
             this.sendRegistered();
             _client.setState(Client.State.REGISTERED_SENT);
-            System.out.println("==========");
-            System.out.println("The client state is "+ _client.getState());
-            
+
             byte[] mesRev = _socket.readMessage();
             String message = new String (mesRev);
             System.out.println("The received message is "+ message);
@@ -55,36 +53,36 @@ public final class SessionThread extends Thread {
             if(msg[0].equals(new String("CONNECT"))){
             	System.out.println("Connect Message received");
             }
-            
+
             // send start msg to client
             String chatID = msg[1];
             String startMsg1 = "START " + sessionID + " " + chatID;
             System.out.println("The start1 is "+ startMsg1);
             String startMsg2 = "START " + sessionID + " " + Integer.toString(_client.id());
             System.out.println("The start2 is "+ startMsg2);
-            
+
             // because we need two laptop to check the correctness of UNREACHABLE msg,
             // I just use the following statement to send start msg.
-            
+
 //            _socket.writeMessage(startMsg1);
 //            _client.setState(Client.State.ACTIVE_CHAT);
             // if the chat client state is REGISTERED_SENT, that means the client is available
             // other state means that the client is not available. then send unreachable message
-            
-            
+
+
             int chatIDint = Integer.parseInt(chatID);
             if(Server.getClient(chatIDint).getState().equals(new String("REGISTERED_SENT"))){
             	_socket.writeMessage(startMsg1);
 //            	System.out.println("client B addr: "+ _socket.getSocket(chatID));
-            	
+
             	System.out.println("================id: "+ _socket.getSocket("2")._socket.getRemoteSocketAddress().toString());
-            	
+
             	for (Map.Entry<Integer, SessionSocket> tmp: _socket.idMapSockt.entrySet()) {
             		System.out.println(tmp.getKey());
             		System.out.println(tmp.getValue()._socket.getRemoteSocketAddress().toString());
             	}
-            	
-            	
+
+
             	_socket.getSocket(chatID).writeMessage(startMsg2);
             	_client.setState(Client.State.ACTIVE_CHAT);
             	Server.getClient(Integer.parseInt(chatID)).setState(Client.State.ACTIVE_CHAT);
@@ -97,7 +95,7 @@ public final class SessionThread extends Thread {
 //            chat1.start();
 //            Thread chat2 = new Thread(new ChatThread(_socket.getSocket(chatID), _client, Integer.toString(_client.id()), sessionID));
 //            chat2.start();
-            
+
 //            while(_client.getState().equals(new String("ACTIVE_CHAT"))){
 //            	 byte[] chatCotent = _socket.readMessage();
 //                 String content = new String(chatCotent);
@@ -108,14 +106,14 @@ public final class SessionThread extends Thread {
 //                 System.out.println("The chat content received from client A is "+ content);
 //                 // send content to client B
 //                 _socket.getSocket(chatID).writeMessage(content);
-//                 
+//
 //            }
 //            System.out.println("The client enter End Chat");
 //            String endChat = "END_NOTIF " + sessionID;
 //            System.out.println("The end notification msg is "+ endChat);
 //            _socket.writeMessage(endChat);
 //            System.out.println("The end chat msg has sent to client");
-           
+
         } catch (Exception e) {
             // TODO Auto-generated catch blosck
             e.printStackTrace();
@@ -169,7 +167,7 @@ public final class SessionThread extends Thread {
             System.out.println("================Remoteaddr: " + _socket._socket.getRemoteSocketAddress().toString());
             _socket.setSocket(_client.id(), _socket);
             System.out.println("================id: "+ _socket.getSocket(Integer.toString(_client.id()))._socket.getRemoteSocketAddress().toString());
-            
+
             Console.debug(tag("Established TCP session to client."));
 
         } catch (SocketTimeoutException e) {
@@ -217,6 +215,6 @@ public final class SessionThread extends Thread {
         byte[] msg = _socket.writeMessage("REGISTERED");
         _client.setState(Client.State.ONLINE);
     }
-    
+
 
 }
