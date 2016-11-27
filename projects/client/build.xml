@@ -6,6 +6,9 @@
   <target name="publish" depends="common.publish">
     <copy file="${basedir}/${ant.project.name}.cfg" todir="${build.dir}" />
     <copy file="${basedir}/${ant.project.name}2.cfg" todir="${build.dir}" />
+    <copy file="${basedir}/${ant.project.name}3.cfg" todir="${build.dir}" />
+    <copy file="${basedir}/${ant.project.name}4.cfg" todir="${build.dir}" />
+    <copy file="${basedir}/${ant.project.name}5.cfg" todir="${build.dir}" />
     <copy file="${scripts.dir}/${ant.project.name}.sh" todir="${wkspace.dir}" />
     <chmod file="${wkspace.dir}/${ant.project.name}.sh" perm="ugo+rx" />
     <copy file="${scripts.dir}/${ant.project.name}.bat" todir="${wkspace.dir}" />
