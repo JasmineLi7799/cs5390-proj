@@ -144,6 +144,7 @@ public final class Cryptor {
         throws Exception {
 
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+//        Cipher cipher = Cipher.getInstance("DES/ECB/NoPadding");
         cipher.init(Cipher.ENCRYPT_MODE, key, _iv);
         return cipher.doFinal(plaintext);
     }
@@ -160,6 +161,7 @@ public final class Cryptor {
     public static byte[] decrypt(SecretKeySpec key, byte[] cryptext)
         throws Exception {
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+//    	Cipher cipher = Cipher.getInstance("DES/ECB/NoPadding");
         cipher.init(Cipher.DECRYPT_MODE, key, _iv);
         return cipher.doFinal(cryptext);
     }
