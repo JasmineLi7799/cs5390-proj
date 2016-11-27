@@ -192,7 +192,10 @@ public final class SessionSocket {
         return bos.toByteArray();
     }
     
+    //this sends to server I think
+    //so, using this to write messages to the client during chat is wrong, I think
     public byte[] writeMessage(String message) throws Exception{
+        //Console.debug("Writing " + message + " to server");
         byte[] msg = message.getBytes();
         _outStream.write(message.getBytes());;
         return msg;

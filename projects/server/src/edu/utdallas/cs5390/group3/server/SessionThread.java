@@ -3,6 +3,7 @@ package edu.utdallas.cs5390.group3.server;
 import edu.utdallas.cs5390.group3.core.Console;
 
 import java.net.InetAddress;
+import java.net.SocketAddress;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.SocketTimeoutException;
@@ -77,14 +78,15 @@ public final class SessionThread extends Thread {
             	_socket.writeMessage(startMsg1);
 //            	System.out.println("client B addr: "+ _socket.getSocket(chatID));
             	
-            	System.out.println("================id: "+ _socket.getSocket("2")._socket.getRemoteSocketAddress().toString());
+                SocketAddress sockAddr = _socket.getSocket(chatID)._socket.getRemoteSocketAddress();
+            	System.out.println("================id: "+ sockAddr.toString());
             	
             	for (Map.Entry<Integer, SessionSocket> tmp: _socket.idMapSockt.entrySet()) {
             		System.out.println(tmp.getKey());
             		System.out.println(tmp.getValue()._socket.getRemoteSocketAddress().toString());
             	}
             	
-            	
+            	//write message to client B (chatID)
             	_socket.getSocket(chatID).writeMessage(startMsg2);
             	_client.setState(Client.State.ACTIVE_CHAT);
             	Server.getClient(Integer.parseInt(chatID)).setState(Client.State.ACTIVE_CHAT);
@@ -98,18 +100,18 @@ public final class SessionThread extends Thread {
 //            Thread chat2 = new Thread(new ChatThread(_socket.getSocket(chatID), _client, Integer.toString(_client.id()), sessionID));
 //            chat2.start();
             
-//            while(_client.getState().equals(new String("ACTIVE_CHAT"))){
-//            	 byte[] chatCotent = _socket.readMessage();
-//                 String content = new String(chatCotent);
-//                 if(content.substring(0, 11).equals(new String("END_REQUEST"))) {
-//                	 System.out.println("+++++ revceive");
-//                	 break;
-//                 }
-//                 System.out.println("The chat content received from client A is "+ content);
-//                 // send content to client B
-//                 _socket.getSocket(chatID).writeMessage(content);
-//                 
-//            }
+           while(_client.getState().equals(new String("ACTIVE_CHAT"))){
+           	 byte[] chatCotent = _socket.readMessage();
+                String content = new String(chatCotent);
+                if(content.length()>=11 && content.substring(0, 11).equals(new String("END_REQUEST"))) {
+               	 System.out.println("+++++ revceive");
+               	 break;
+                }
+                System.out.println("The chat content received from client " + _client.id() + " is "+ content);
+                // send content to client B
+                _socket.getSocket(chatID).writeMessage(content);
+                
+           }
 //            System.out.println("The client enter End Chat");
 //            String endChat = "END_NOTIF " + sessionID;
 //            System.out.println("The end notification msg is "+ endChat);
