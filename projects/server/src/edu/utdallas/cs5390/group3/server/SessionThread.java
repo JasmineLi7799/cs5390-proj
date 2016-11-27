@@ -72,8 +72,8 @@ public final class SessionThread extends Thread {
             // other state means that the client is not available. then send unreachable message
             
             
-            
-            if(Server.getClient(Integer.parseInt(chatID)).getState().equals(new String("REGISTERED_SENT"))){
+            int chatIDint = Integer.parseInt(chatID);
+            if(Server.getClient(chatIDint).getState().equals(new String("REGISTERED_SENT"))){
             	_socket.writeMessage(startMsg1);
 //            	System.out.println("client B addr: "+ _socket.getSocket(chatID));
             	

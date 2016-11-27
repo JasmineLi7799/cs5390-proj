@@ -44,7 +44,7 @@ public final class SessionThread extends Thread {
                 Console.info("Received REGISTERED.");
                 _client.setState(Client.State.REGISTERED);
                 _client.getState();
-                System.out.println("type the id");
+                Console.clientPrompt();
                 
             }
         } catch (SocketTimeoutException e) {

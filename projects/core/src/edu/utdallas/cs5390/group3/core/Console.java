@@ -19,6 +19,11 @@ public final class Console {
         return _in.nextLine();
     }
 
+    public static void clientPrompt(){
+        Console.info("Type 'log on' to begin, 'quit' or 'exit' "
+                     + "to exit, or 'chat <id>' to talk with another client (case-insensitive).");
+    }
+
     private static void write(String prefix, String message) {
         synchronized(System.out) {
             System.out.println(prefix + " " + message);

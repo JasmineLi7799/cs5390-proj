@@ -60,8 +60,7 @@ public final class Main {
         Main.registerShutdownHook();
 
         Console.info("Chat client initialized.");
-        Console.info("Type 'log on' to begin, 'quit' or 'exit' "
-                     + "to exit, or 'chat <id>' to talk with another client (case-insensitive).");
+        Console.clientPrompt();
 
         while (!Thread.interrupted()) {
             String command;

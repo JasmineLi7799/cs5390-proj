@@ -51,9 +51,8 @@ public final class SessionSocket {
     }
 
     public void setSocket(int clientId, SessionSocket socket){
-    	if(idMapSockt.containsKey(clientId)) System.out.println("fucking!!!!!!!!!!!!!!!!!!!!!!!");
+    	if(idMapSockt.containsKey(clientId)) System.out.println("idMapSockt.containsKey(clientID) is true");
     	idMapSockt.put(clientId, socket);
-    	System.out.println("COUNT!!!!!!!");
     	System.out.println("clientId is: "+ clientId);
     }
     
