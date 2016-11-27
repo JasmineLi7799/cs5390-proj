@@ -254,7 +254,7 @@ public final class Main {
             new Runnable() {
                 public void run() {
                     try {
-                    	String chatCotent = "CHAT sessionId: " + sessionID + " chat message: " + cmd;
+                    	String chatCotent = "CHAT " + sessionID + " " + cmd;
                         _client.sessionSock().writeMessage(chatCotent);
                         System.out.println("Chat msg is "+ chatCotent);
                         System.out.println("The Chat content is "+ cmd);
