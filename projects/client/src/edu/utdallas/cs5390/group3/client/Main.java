@@ -16,6 +16,8 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import java.net.URLDecoder;
+
 public final class Main {
     private static Client _client = null;
     private static InetSocketAddress _serverSockAddr = null;
@@ -24,13 +26,30 @@ public final class Main {
     public Scanner input = new Scanner(System.in);
     public static void main(String[] args) throws Exception {
 
-        // Create and configure Client
-        String configFileName = "client.cfg";
+        // This bit of ugliness obtains the directory that the .jar file
+        // is located info.
+        String path = Main.class.getProtectionDomain().getCodeSource()
+            .getLocation().getPath();
+        String decodedPath = URLDecoder.decode(path, "UTF-8");
+        String basePath = "";
+        int endIndex = decodedPath.lastIndexOf("/");
+        if (endIndex != -1)
+        {
+            basePath = decodedPath.substring(0, endIndex + 1);
+        }
+
+        // By default, look for client.cfg in the .jar file's directory
+        String configFileName = basePath + "client.cfg";
+        // But use the first command line argument to locate the config file
+        // if it has been specified.
         if(args.length > 0) {
             configFileName = args[0];
         }
         Console.info("Using config file: " + configFileName);
+
+        // Create the client
         _client = Client.instance();
+        // Configure it.
         try {
             _client.configure(configFileName);
         } catch (IllegalStateException | NullPointerException e) {
@@ -64,7 +83,7 @@ public final class Main {
             else if (command.matches("(?i)^log on")) {
                 handleLogOn();
             }
-            
+
             else if (command.matches("(?i)^end chat")){
             	handleEndChat(command);
             }
@@ -73,7 +92,7 @@ public final class Main {
             else if (command.matches("(?i)^(chat$|chat .*$)")) {
                 handleChat(command);
             }
-            
+
             else if (command.matches("[\\s\\S]*")){
             	handleChatSession(command);
             }
@@ -124,7 +143,7 @@ public final class Main {
             Console.error("Could not initiate login: " + e);
         }
     }
-   
+
     private static void handleChat(String cmd) {
         // Check syntax
         if (!cmd.matches("(?i)^chat [1-9][0-9]*$")) {
@@ -171,9 +190,9 @@ public final class Main {
                         _client.sessionSock().writeMessage(
                             "CONNECT " + clientBId);
                         System.out.println("The CONNECT message has sent");
-                        
+
                      // read Start message
-                        
+
                         byte[] revStart = _client.sessionSock().readMessage();
 //                        System.out.println(revStart);
                         String startMsg = new String(revStart);
@@ -187,7 +206,7 @@ public final class Main {
                         }else if(msg[0].equals(new String("UNREACHABLE"))){
                         	System.out.println("Correspondent unreachable");
                         }
-                        
+
                     } catch (Exception e) {
                         Console.debug("While sending CHAT: " + e);
                     }
@@ -196,10 +215,10 @@ public final class Main {
             "CHAT worker");
         worker.start();
     }
-    
-    
+
+
     private static void handleChatSession(String cmd){
-    	
+
     	 // Check for valid state (requires an active chat session)
         Client.State state;
         try {
@@ -239,7 +258,7 @@ public final class Main {
                         _client.sessionSock().writeMessage(chatCotent);
                         System.out.println("Chat msg is "+ chatCotent);
                         System.out.println("The Chat content is "+ cmd);
-                        
+
                     } catch (Exception e) {
                         Console.debug("While sending CHAT: " + e);
                     }
@@ -248,8 +267,8 @@ public final class Main {
             "CHAT worker");
         worker.start();
     }
-    
-    
+
+
     private static void handleEndChat(String cmd){
 //    	Client.State state;
 //        try {
@@ -288,7 +307,7 @@ public final class Main {
                     	String chatCotent = "END_REQUEST " + sessionID;
                         _client.sessionSock().writeMessage(chatCotent);
                         System.out.println("END_REQUEST has sent to server");
-                        
+
                         byte[] endNotif = _client.sessionSock().readMessage();
                         String notif = new String(endNotif);
                         System.out.println("the end notification is "+ notif);
@@ -301,7 +320,7 @@ public final class Main {
             "CHAT worker");
         worker.start();
     }
-    
+
     public String getCommand() throws Exception{
         String command = input.nextLine();
     	return command;
