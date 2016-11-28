@@ -48,9 +48,12 @@ public final class SessionThread extends Thread {
             System.out.println("==========");
             System.out.println("The client state is "+ _client.getState());
             
+            
             byte[] mesRev = _socket.readMessage();
+            String s = _socket._socket.getRemoteSocketAddress().toString();
+            System.out.println("=============================xingzhe" + s );
             String message = new String (mesRev);
-            System.out.println("The received message is "+ message);
+            System.out.println("The received message is abc "+ message);
             String[] msg = message.split("\\s+");
             if(msg[0].equals(new String("CONNECT"))){
             	System.out.println("Connect Message received");
@@ -63,28 +66,10 @@ public final class SessionThread extends Thread {
             String startMsg2 = "START " + sessionID + " " + Integer.toString(_client.id());
             System.out.println("The start2 is "+ startMsg2);
             
-            // because we need two laptop to check the correctness of UNREACHABLE msg,
-            // I just use the following statement to send start msg.
-            
 //            _socket.writeMessage(startMsg1);
-//            _client.setState(Client.State.ACTIVE_CHAT);
-            // if the chat client state is REGISTERED_SENT, that means the client is available
-            // other state means that the client is not available. then send unreachable message
-            
-            
             
             if(Server.getClient(Integer.parseInt(chatID)).getState().equals(new String("REGISTERED_SENT"))){
             	_socket.writeMessage(startMsg1);
-//            	System.out.println("client B addr: "+ _socket.getSocket(chatID));
-            	
-            	System.out.println("================id: "+ _socket.getSocket("2")._socket.getRemoteSocketAddress().toString());
-            	
-            	for (Map.Entry<Integer, SessionSocket> tmp: _socket.idMapSockt.entrySet()) {
-            		System.out.println(tmp.getKey());
-            		System.out.println(tmp.getValue()._socket.getRemoteSocketAddress().toString());
-            	}
-            	
-            	
             	_socket.getSocket(chatID).writeMessage(startMsg2);
             	_client.setState(Client.State.ACTIVE_CHAT);
             	Server.getClient(Integer.parseInt(chatID)).setState(Client.State.ACTIVE_CHAT);
@@ -93,22 +78,26 @@ public final class SessionThread extends Thread {
             	_socket.writeMessage(unreachMsg);
             }
             System.out.println("++++++");
-//            Thread chat1 = new Thread(new ChatThread(_socket, _client, chatID, sessionID));
-//            chat1.start();
-//            Thread chat2 = new Thread(new ChatThread(_socket.getSocket(chatID), _client, Integer.toString(_client.id()), sessionID));
-//            chat2.start();
+            System.out.println("=========================The clientB addr: "+ _socket.getSocket(chatID)._socket.getRemoteSocketAddress());
+            Thread chat1 = new Thread(new ChatThread(_socket, chatID, sessionID));
+            chat1.start();
+            Thread chat2 = new Thread(new ChatThread(_socket.getSocket(chatID), Integer.toString(_client.id()), sessionID));
+            chat2.start();
             
-//            while(_client.getState().equals(new String("ACTIVE_CHAT"))){
-//            	 byte[] chatCotent = _socket.readMessage();
-//                 String content = new String(chatCotent);
-//                 if(content.substring(0, 11).equals(new String("END_REQUEST"))) {
-//                	 System.out.println("+++++ revceive");
-//                	 break;
-//                 }
-//                 System.out.println("The chat content received from client A is "+ content);
-//                 // send content to client B
-//                 _socket.getSocket(chatID).writeMessage(content);
-//                 
+//            while(true){
+//            	synchronized(this) {
+//            		 byte[] chatCotent = _socket.readMessage();
+//                     String content = new String(chatCotent);
+//                     if(content.substring(0, 11).equals(new String("END_REQUEST"))) {
+//                    	 System.out.println("+++++ revceive");
+//                    	 break;
+//                     }
+//                     System.out.println("The chat content received from client A is "+ content);
+//                     // send content to client B
+//                     _socket.getSocket(chatID).writeMessage(content);
+//                     
+//            	}
+//            	
 //            }
 //            System.out.println("The client enter End Chat");
 //            String endChat = "END_NOTIF " + sessionID;
@@ -125,7 +114,7 @@ public final class SessionThread extends Thread {
         // See HandshakeThread in client and server for inspiration on
         // how to structure this as a state machine.
 
-        this.exitCleanup();
+//        this.exitCleanup();
     }
 
     /* Thread cleanup tasks */

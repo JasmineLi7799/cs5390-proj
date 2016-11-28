@@ -38,15 +38,20 @@ public final class SessionThread extends Thread {
             Console.debug("Got connection from server.");
             _client.setSessionSock(_socket);
             
-            byte[] receiveRegistered = _socket.readMessage();
-            String registered = new String(receiveRegistered);
-            if(registered.equals(new String("REGISTERED"))) {
-                Console.info("Received REGISTERED.");
-                _client.setState(Client.State.REGISTERED);
-                _client.getState();
-                System.out.println("type the id");
-                
+            
+            while(true){
+            	byte[] receiveRegistered = _socket.readMessage();
+                String registered = new String(receiveRegistered);
+                if(registered.equals(new String("REGISTERED"))) {
+                    Console.info("Received REGISTERED.");
+                    _client.setState(Client.State.REGISTERED);
+                    System.out.println("type the id");
+                    
+                }else{
+                	System.out.println("The msg is: " + registered);
+                }
             }
+            
         } catch (SocketTimeoutException e) {
             Console.error("Timeout while waiting for REGISTERED response "
                           + "from server. Check your settings and retry your "
@@ -64,17 +69,17 @@ public final class SessionThread extends Thread {
             return;
         }
 
-        while (!Thread.currentThread().isInterrupted()) {
-            // TODO: protocol message fetch & process loop
-            // For now, the thread does nothing.
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                break;
-            }
-        }
-
-        this.exitCleanup();
+//        while (!Thread.currentThread().isInterrupted()) {
+//            // TODO: protocol message fetch & process loop
+//            // For now, the thread does nothing.
+//            try {
+//                Thread.sleep(1000);
+//            } catch (InterruptedException e) {
+//                break;
+//            }
+//        }
+//
+//        this.exitCleanup();
     }
 
 

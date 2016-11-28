@@ -137,7 +137,7 @@ public final class Main {
         Client.State state;
         try {
             state = _client.state();
-            System.out.println("==================");
+            System.out.println("================== handleChat");
             _client.getState();
         } catch (InterruptedException e) {
             return;
@@ -166,7 +166,7 @@ public final class Main {
         Thread worker = new Thread(
             _client.threadGroup(),
             new Runnable() {
-                public void run() {
+                public synchronized void run() {
                     try {
                         _client.sessionSock().writeMessage(
                             "CONNECT " + clientBId);
@@ -199,12 +199,12 @@ public final class Main {
     
     
     private static void handleChatSession(String cmd){
-    	
+    		
     	 // Check for valid state (requires an active chat session)
         Client.State state;
         try {
             state = _client.state();
-            System.out.println("==================");
+            System.out.println("================== Chat Session");
             _client.getState();
         } catch (InterruptedException e) {
             return;
@@ -235,10 +235,33 @@ public final class Main {
             new Runnable() {
                 public void run() {
                     try {
-                    	String chatCotent = "CHAT sessionId: " + sessionID + " chat message: " + cmd;
-                        _client.sessionSock().writeMessage(chatCotent);
-                        System.out.println("Chat msg is "+ chatCotent);
-                        System.out.println("The Chat content is "+ cmd);
+                    	
+//                    	if(cmd.matches("(?i)^(chat$|chat .*$)")){
+//                    		 String[] command = cmd.split("\\s+");
+//                    		 String clientBId = command[1];
+//							_client.sessionSock().writeMessage(
+//                                     "CONNECT " + clientBId);
+//                                 System.out.println("The CONNECT message has sent");
+//                                 
+//                                 byte[] revStart = _client.sessionSock().readMessage();
+////                               System.out.println(revStart);
+//                               String startMsg = new String(revStart);
+//                               String[] msg = startMsg.split("\\s+");
+//                               sessionID = Integer.parseInt(msg[1]);
+//                               System.out.println("The session Id is "+ sessionID);
+//                               if(msg[0].equals(new String("START"))){
+//                               	System.out.println("The start msg is " + startMsg);
+//                                   System.out.println("------------------------");
+//                                   System.out.println("Chat Started");
+//                               }else if(msg[0].equals(new String("UNREACHABLE"))){
+//                               	System.out.println("Correspondent unreachable");
+//                               }
+//                    	}else{
+                    		String chatCotent = "CHAT sessionId: " + sessionID + " chat message: " + cmd;
+                    		_client.sessionSock().writeMessage(chatCotent);
+                            System.out.println("Chat msg is "+ chatCotent);
+                            System.out.println("The Chat content is "+ cmd);
+//                    	}
                         
                     } catch (Exception e) {
                         Console.debug("While sending CHAT: " + e);
