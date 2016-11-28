@@ -1,9 +1,15 @@
 package edu.utdallas.cs5390.group3.server;
 
 import edu.utdallas.cs5390.group3.core.Cryptor;
+import edu.utdallas.cs5390.group3.core.Console;
 
 import java.lang.String;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.LinkedList;
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -22,15 +28,20 @@ public final class Client {
     private int _id;
     private String _privateKey;
     private SecretKeySpec _cryptKey;
+    private ConcurrentHashMap<Integer, LinkedList<String>> _msgHistories;
 
     private State _state;
+
     public static enum State {
         OFFLINE,
         HELLO_RECV,
         CHALLENGE_SENT,
         RESPONSE_RECV,
         AUTHENTICATED,
-        REGISTERED
+        REGISTERED,
+        //JASON
+        ONLINE,
+        ACTIVE_CHAT
         // ...
     }
 
@@ -43,7 +54,7 @@ public final class Client {
     // it to Client B's socket.
     private SessionSocket _socket;
 
-    private ChatSession _chat;
+    private ChatSession _chatSession;
 
     // =========================================================================
     // Constructor
@@ -59,6 +70,7 @@ public final class Client {
         _id = id;
         _privateKey = k;
         _state = Client.State.OFFLINE;
+        _msgHistories = new ConcurrentHashMap<Integer, LinkedList<String>>();
     }
 
     // =========================================================================
@@ -69,6 +81,7 @@ public final class Client {
     public String privateKey() { return _privateKey; }
     public SecretKeySpec cryptKey() { return _cryptKey; }
     public SessionSocket socket() { return _socket; }
+    public ChatSession chatSession() { return _chatSession; }
 
     public State state() throws InterruptedException {
         State retVal;
@@ -91,4 +104,31 @@ public final class Client {
     public void setSocket(SessionSocket sock) {
         _socket = sock;
     }
+
+    public void setChatSession(ChatSession chatSession) {
+        _chatSession = chatSession;
+    }
+
+    public LinkedList<String> getHistory(int partnerId) {
+        try {
+            return _msgHistories.get(partnerId);
+        } catch (NullPointerException e) {
+            return null;
+        }
+    }
+
+    public void addHistory(int partnerId, String message) {
+        LinkedList<String> history;
+        try {
+            history = _msgHistories.get(partnerId);
+        } catch (NullPointerException e) {
+            history = new LinkedList<String>();
+        }
+        if (history == null) {
+            history = new LinkedList<String>();
+            _msgHistories.put(partnerId, history);
+        }
+        history.add(message);
+    }
+
 }

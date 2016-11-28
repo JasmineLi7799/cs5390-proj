@@ -9,17 +9,37 @@ import java.lang.Thread;
 import java.lang.IllegalStateException;
 import java.util.NoSuchElementException;
 
+import java.net.URLDecoder;
+
 /* The Main class implements the server's interactive console and
  * creates the Server object.
  */
 public final class Main {
     public static void main(String[] args) throws Exception {
 
-        // Create, configure, and start server
-        String configFileName = "server.cfg";
+        // This bit of ugliness obtains the directory that the .jar file
+        // is located info.
+        String path = Main.class.getProtectionDomain().getCodeSource()
+            .getLocation().getPath();
+        String decodedPath = URLDecoder.decode(path, "UTF-8");
+        String basePath = "";
+        int endIndex = decodedPath.lastIndexOf("/");
+        if (endIndex != -1)
+        {
+            basePath = decodedPath.substring(0, endIndex + 1);
+        }
+
+        // By default, look for server.cfg in the .jar file's directory
+        String configFileName = basePath + "server.cfg";
+        // But use the first command line argument to locate the config file
+        // if it has been specified.
         if(args.length > 0)
             configFileName = args[0];
+        Console.info("Using config file: " + configFileName);
+
+        // Create the server
         Server server = Server.instance();
+        // Configure it
         try {
             server.configure(configFileName);
         } catch (IllegalStateException | NullPointerException e) {
@@ -27,6 +47,7 @@ public final class Main {
                           + e.getMessage());
             return;
         }
+        // Start it.
         try {
             server.start();
         } catch (IllegalStateException e) {

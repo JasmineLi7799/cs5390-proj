@@ -113,7 +113,9 @@ public final class HandshakeThread extends Thread {
                 try {
                     dgram = this.fetchDatagram();
                 } catch (NullPointerException e) {
-                    _client.setState(Client.State.OFFLINE);
+                    if (_client != null) {
+                        _client.setState(Client.State.OFFLINE);
+                    }
                     break;
                 }
 
@@ -231,6 +233,10 @@ public final class HandshakeThread extends Thread {
             }
             // Handshake complete; SessionThread will take it from here.
             return false;
+        default:
+            Console.debug(tag("Received unknown message type."
+                              + " (delayed, encrypted REGISTER maybe?)"));
+            return false;
         }
 
         return true;
@@ -247,8 +253,7 @@ public final class HandshakeThread extends Thread {
         throws InterruptedException, IOException {
 
         // Are we in the right state for this?
-        if (_client != null
-            && _client.state() != Client.State.OFFLINE) {
+        if (_client != null) {
             Console.debug(tag("Received HELLO in invalid state."));
             return false;
         }
@@ -271,9 +276,15 @@ public final class HandshakeThread extends Thread {
             return false;
         }
 
+        if (client.state() != Client.State.OFFLINE) {
+            Console.debug(tag("Received HELLO in invalid state: "
+                              + client.state()));
+            return false;
+        }
+
         // Set client. Send response.
         _client = client;
-        Console.info(tag("Received HELLO."));
+        Console.info(tag("Received HELLO from client " + _client.id()));
         this.sendChallenge();
 
         _client.setState(Client.State.CHALLENGE_SENT);
@@ -292,16 +303,13 @@ public final class HandshakeThread extends Thread {
         // Construct the challenge packet payload.
         String payload = "CHALLENGE " + rand;
 
-        // Send the challenge
-        Console.debug(tag("Sending " + payload));
-
         // Set the encryption key for post-auth communication.
         byte[] ckey = Cryptor.hash2(_client.privateKey(), randBytes);
         String ckeyString = DatatypeConverter.printHexBinary(ckey);
-        Console.debug(tag("Setting client cryptkey: " + ckeyString));
         _client.setCryptKey(ckey);
-
+        // Save XRES
         _xres = Cryptor.hash1(_client.privateKey(), randBytes);
+        // Send the challenge
         _welcomeSock.send(payload, _clientAddr, _clientPort);
     }
 
@@ -347,8 +355,6 @@ public final class HandshakeThread extends Thread {
         if (response.hasNext()) {
             Console.debug(tag("Extra bytes in RESPONSE."));
         }
-
-        Console.debug(tag("Received RESPONSE " + resString));
 
         byte[] res = DatatypeConverter.parseHexBinary(resString);
         if (Arrays.equals(res, _xres)) {
@@ -425,7 +431,6 @@ public final class HandshakeThread extends Thread {
         // Validate port
         if (!register.hasNextInt()) {
             Console.error(tag("Receieved truncated REGISTER (expected port)."));
-            Console.debug(tag("next token: '" + register.next() + "'"));
             return false;
         }
         int regPort = register.nextInt();
@@ -439,14 +444,12 @@ public final class HandshakeThread extends Thread {
         }
 
         // Finally good.
-        Console.debug(tag("Received REGISTER " + regAddrString
-                          + " " + regPort));
         _regAddr = regAddr;
         _regPort = regPort;
         _isComplete = true;
-
         return true;
     }
+
 
     // =========================================================================
     // WelcomeSocket IO
@@ -484,8 +487,12 @@ public final class HandshakeThread extends Thread {
         DatagramPacket dgram = this.udpPoll();
         if (dgram == null) {
             if (_client != null) {
+                String op = "RESPONSE";
+                if (_client.state() == Client.State.AUTHENTICATED) {
+                    op = "REGISTER";
+                }
                 Console.debug(
-                    tag("Timed out while waiting for RESPONSE."));
+                    tag("Timed out while waiting for " + op + "."));
                 throw new NullPointerException();
             }
         }
