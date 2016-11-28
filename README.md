@@ -12,9 +12,14 @@ A simple IRC-like client/server chat system.
 6. Run `./client.sh client3.cfg`
 7. Run `./client.sh client4.cfg`
 8. Run `./client.sh client5.cfg`
+9. Run `./client.sh client6.cfg`
+10. Run `./client.sh client7.cfg`
+11. Run `./client.sh client8.cfg`
+12. Run `./client.sh client9.cfg`
+13. Run `./client.sh client10.cfg`
 
-This will start the server and 5 clients, each with their own numeric client id
-(1-5).
+This will start the server and 10 clients, each with their own numeric client id
+(1-10).
 
 If you are using cmd.exe on Windows, simply replace `server.sh` and `client.sh`
 with `server.bat` and `client.bat`.
@@ -104,6 +109,11 @@ respective `build` sub-directories:
     client3.cfg
     client4.cfg
     client5.cfg
+    client6.cfg
+    client7.cfg
+    client8.cfg
+    client9.cfg
+    client10.cfg
 
 You can edit these files, but be aware that they will be overwritten from source
 the next time you run `ant`. The source for the default configuration files is:
@@ -117,3 +127,7 @@ the next time you run `ant`. The source for the default configuration files is:
 You may edit these configuration files instead, but it will have no effect until
 the next time you run `ant`, or manually copy them into the relevant `build`
 subdirectory.
+
+To reconfigure the server, edit `server.cfg` in its `build` folder. There are
+internal comments explaining how to add or alter clients in the server's
+database.

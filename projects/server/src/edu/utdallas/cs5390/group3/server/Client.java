@@ -1,11 +1,15 @@
 package edu.utdallas.cs5390.group3.server;
 
 import edu.utdallas.cs5390.group3.core.Cryptor;
+import edu.utdallas.cs5390.group3.core.Console;
 
 import java.lang.String;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.LinkedList;
 
 import javax.crypto.spec.SecretKeySpec;
 
@@ -22,18 +26,11 @@ import javax.crypto.spec.SecretKeySpec;
 public final class Client {
     // Basic client info.
     private int _id;
-    // check which session id is valid
-    private static HashMap<Integer, Boolean> sessionIDmp = new HashMap<Integer, Boolean>();
-    // map clientID to client ip address and port number
-    private static HashMap<Integer, String> idMapIPandPort = new HashMap<Integer, String>();
     private String _privateKey;
     private SecretKeySpec _cryptKey;
+    private ConcurrentHashMap<Integer, LinkedList<String>> _msgHistories;
 
     private State _state;
-
-    //each client should have a list of chatSession object to get the chat history
-    private ArrayList<ChatSession> _chatList;
-
 
     public static enum State {
         OFFLINE,
@@ -44,7 +41,6 @@ public final class Client {
         REGISTERED,
         //JASON
         ONLINE,
-        REGISTERED_SENT,
         ACTIVE_CHAT
         // ...
     }
@@ -58,7 +54,7 @@ public final class Client {
     // it to Client B's socket.
     private SessionSocket _socket;
 
-    private ChatSession _chat;
+    private ChatSession _chatSession;
 
     // =========================================================================
     // Constructor
@@ -74,7 +70,7 @@ public final class Client {
         _id = id;
         _privateKey = k;
         _state = Client.State.OFFLINE;
-        _chatList = new ArrayList<ChatSession>();
+        _msgHistories = new ConcurrentHashMap<Integer, LinkedList<String>>();
     }
 
     // =========================================================================
@@ -85,6 +81,7 @@ public final class Client {
     public String privateKey() { return _privateKey; }
     public SecretKeySpec cryptKey() { return _cryptKey; }
     public SessionSocket socket() { return _socket; }
+    public ChatSession chatSession() { return _chatSession; }
 
     public State state() throws InterruptedException {
         State retVal;
@@ -108,60 +105,30 @@ public final class Client {
         _socket = sock;
     }
 
-    public static void setSessionId(int num){
-    	for(int i=0; i<num;){
-    		sessionIDmp.put(++i, false);
-    	}
+    public void setChatSession(ChatSession chatSession) {
+        _chatSession = chatSession;
     }
 
-    public void sessionIDisTrue(int sessionID){
-    	sessionIDmp.put(sessionID, true);
+    public LinkedList<String> getHistory(int partnerId) {
+        try {
+            return _msgHistories.get(partnerId);
+        } catch (NullPointerException e) {
+            return null;
+        }
     }
 
-    public boolean getSessionIDstate(int sessionID){
-    	return sessionIDmp.get(sessionID);
+    public void addHistory(int partnerId, String message) {
+        LinkedList<String> history;
+        try {
+            history = _msgHistories.get(partnerId);
+        } catch (NullPointerException e) {
+            history = new LinkedList<String>();
+        }
+        if (history == null) {
+            history = new LinkedList<String>();
+            _msgHistories.put(partnerId, history);
+        }
+        history.add(message);
     }
 
-    public int getSessionID(int clientID){
-    	int i=1;
-    	while(sessionIDmp.get(i)==true){
-    		i++;
-    	}
-    	return i;
-    }
-
-    public String getState(){
-    	String s = _state.toString();
-    	return s;
-    }
-
-    public void setIPmap(int clientid, String ipAndPort){
-    	idMapIPandPort.put(clientid, ipAndPort);
-    }
-
-    public String getIPandPort(int clientid){
-    	return idMapIPandPort.get(clientid);
-    }
-
-    /**
-     * at the end of each session, add the chatSesseion to the chatList
-     */
-    public void addChat(ChatSession chat){
-    	_chatList.add(chat);
-    }
-
-    /**
-     * get the right history
-     * check through all the chat session
-     */
-    public String getHistory(int clientB){
-    	String history="<< HISTORY >>";
-    	for(int i = 0; i < _chatList.size(); i++){
-    		if(_chatList.get(i)._clientA.id() == clientB || _chatList.get(i)._clientB.id() == clientB){
-    			history +="/n";
-    			history +=_chatList.get(i).getHistory();
-    		}
-    	}
-    	return history;
-    }
 }

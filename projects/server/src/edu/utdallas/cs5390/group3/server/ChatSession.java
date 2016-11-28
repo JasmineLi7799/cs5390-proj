@@ -14,32 +14,28 @@ public final class ChatSession {
     int _id;
     Client _clientA;
     Client _clientB;
-    ConcurrentLinkedQueue<Message> _messageHistory;
+    ConcurrentLinkedQueue<String> _messageHistory;
 
     public ChatSession(int id, Client clientA, Client clientB) {
         _id = id;
         _clientA = clientA;
         _clientB = clientB;
-        _messageHistory= new ConcurrentLinkedQueue<Message>();
+        _messageHistory= new ConcurrentLinkedQueue<String>();
     }
 
-    /*
-    public sendMessage(Client sender, String message) {}
-    public ConcurrentLinkedQueue<Message> history();
-    public void terminate()
-    */
-    
-    /**
-     * add chat message to the chatHistory
-     * before adding each content, add the session id for each 
-     */
-    public void addMessage(Message msg){
-    	msg.setContent("<sessionid: "+_id+" >");
-    	_messageHistory.add(msg);
+    public int id() { return _id; }
+
+    public Client partner(Client clientX) {
+        if (clientX == _clientA) {
+            return _clientB;
+        } else if (clientX == _clientB) {
+            return _clientA;
+        }
+        return null;
     }
-    
+
    /**
-    * return the history from this chatSession 
+    * return the history from this chatSession
     * @return
     */
    public String getHistory(){

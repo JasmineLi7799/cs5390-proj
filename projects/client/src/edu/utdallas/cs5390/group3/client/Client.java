@@ -15,6 +15,9 @@ public final class Client {
     private int _id;
     private String _privateKey;
     private SecretKeySpec _cryptKey;
+    // chat session id and partner id, if the client is in a chat session.
+    private int _chatSessionId;
+    private int _chatPartnerId;
 
     // Configuration node
     public Config config;
@@ -32,7 +35,8 @@ public final class Client {
         RESPONSE_SENT,
         REGISTER_SENT,
         //JASON//
-        REGISTERED,
+        ONLINE,
+        WAIT_FOR_CHAT,
         ACTIVE_CHAT
         // ...
     }
@@ -85,6 +89,8 @@ public final class Client {
     public String privateKey() { return _privateKey; }
     public SecretKeySpec cryptKey() { return _cryptKey; }
     public SessionSocket sessionSock() { return _sessionSock; }
+    public int chatSessionId() { return _chatSessionId; }
+    public int chatPartnerId() { return _chatPartnerId; }
 
     /* Convenience accessor for the named "client" ThreadGroup. */
     public ThreadGroup threadGroup() {
@@ -112,9 +118,12 @@ public final class Client {
     public void setSessionSock(SessionSocket sock) {
         _sessionSock = sock;
     }
-    
-    public void getState(){
-    	String s = _state.toString();
-    	System.out.println("The current state is " + s);
+
+    public void setChatSessionId(int id) {
+        _chatSessionId = id;
+    }
+
+    public void setChatPartnerId(int id) {
+        _chatPartnerId = id;
     }
 }

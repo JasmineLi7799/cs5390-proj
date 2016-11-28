@@ -15,8 +15,8 @@ import java.lang.NullPointerException;
  * operations of the server (startup, shutdown, initial configuration)
  * and provides access to core data services needed throughout the
  * system (configuration node, client database).
- * 
- * 
+ *
+ *
  */
 public final class Server {
     // Runtime management
@@ -24,15 +24,18 @@ public final class Server {
     private boolean _running;
     private ThreadGroup _threadGroup;
     private Thread _welcomeThread;
-    
+
+    private int _nextChatId;
+
 
     // Lookup services
     private static ConcurrentHashMap<Integer, Client> _clientDB;
+    private static ConcurrentHashMap<Integer, ChatSession> _chatSessionDB;
     public Config config;
-    
-    
+
+
     //history list to save all the history between clients,
-    
+
 
     // =========================================================================
     // Constructor & instance accessor. Initialization
@@ -43,6 +46,8 @@ public final class Server {
         _threadGroup = new ThreadGroup("server");
         _running = false;
         this.config = null;
+        _nextChatId = 0;
+        _chatSessionDB = new ConcurrentHashMap<Integer, ChatSession>();
     }
 
     /* Gets the server instance, creating it if necessary.
@@ -70,14 +75,13 @@ public final class Server {
 
         _clientDB = new ConcurrentHashMap<Integer, Client>();
         int[] uids = this.config.userIDs();
-        Client.setSessionId(uids.length);
         String[] pkeys = this.config.privateKeys();
         for(int i = 0; i < uids.length; i++) {
             Client c = new Client(uids[i], pkeys[i]);
             _clientDB.put(c.id(), c);
         }
     }
-    
+
     public static Client getClient(int clientId){
     	return _clientDB.get(clientId);
     }
@@ -90,6 +94,10 @@ public final class Server {
     /* Convenience accessor for the named "server" ThreadGroup. */
     public ThreadGroup threadGroup() {
         return _threadGroup;
+    }
+
+    public int nextChatId() {
+        return ++_nextChatId;
     }
 
     // =========================================================================
@@ -188,6 +196,24 @@ public final class Server {
             return null;
         }
         return client;
+    }
+
+    public ChatSession findChatSession(int id) {
+        ChatSession sess;
+        try {
+            sess = _chatSessionDB.get(id);
+        } catch (NullPointerException e) {
+            return null;
+        }
+        return sess;
+    }
+
+    public void mapChatSession(int id, ChatSession sess) {
+        _chatSessionDB.put(id, sess);
+    }
+
+    public void unmapChatSession(int id) {
+        _chatSessionDB.remove(id);
     }
 
     // =========================================================================

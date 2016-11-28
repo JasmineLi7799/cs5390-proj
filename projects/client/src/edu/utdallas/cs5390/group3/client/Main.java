@@ -24,13 +24,87 @@ public final class Main {
     private static String cmd;
     private static int sessionID=0;
     public Scanner input = new Scanner(System.in);
-    public static void main(String[] args) throws Exception {
 
+    public static void main(String[] args) throws Exception {
+        if (!Main.createClient(args)) {
+            Console.fatal("Client configuration failed.");
+            return;
+        }
+
+        Console.info("Client started.");
+        Console.info("Type \"log on\" to start."
+                     + " Type \"log off\" or \"quit/exit\" to quit.");
+
+        while (!Thread.interrupted()) {
+            try {
+                String command;
+                try {
+                    command = Console.nextLine();
+                } catch (NoSuchElementException |
+                        IllegalStateException e) {
+                    Console.fatal("Console caught input exception: " + e);
+                    break;
+                }
+
+                // "quit/exit" command
+                if (command.matches("(?i)^(quit|exit|log off|logoff) *$")) {
+                    // valid from any state.
+                    break;
+                }
+
+                //  "log on" command
+                else if (command.matches("(?i)^(log on|logon) *$")) {
+                    Main.handleLogOn();
+                }
+
+                // "chat" command
+                else if (command.matches("(?i)^(chat$|chat .*$)")) {
+                    handleConnect(command);
+                }
+
+                // "end chat" command
+                else if (command.matches("(?i)^end chat *$")) {
+                    handleEndChat();
+                }
+
+                else if (command.matches("(?i)^(history$|history .*$)")) {
+                    handleHistory(command);
+                }
+
+                else if (_client.state() == Client.State.ACTIVE_CHAT
+                         && command.matches(".*")) {
+                    handleChat(command);
+                }
+
+                // Any other input.
+                else {
+                    Console.error("Invalid command: " + command);
+                    continue;
+                }
+            } catch (InterruptedException e) {
+                break;
+            }
+        }
+
+        // Kill all threads in the "client" group when Main exits.
+        // (Otherwise the process doesn't quit; you just lose the
+        // interactive client console).
+        _client.threadGroup().interrupt();
+        Console.close();
+    }
+
+    public static boolean createClient(String[] args) {
         // This bit of ugliness obtains the directory that the .jar file
         // is located info.
         String path = Main.class.getProtectionDomain().getCodeSource()
             .getLocation().getPath();
-        String decodedPath = URLDecoder.decode(path, "UTF-8");
+        String decodedPath;
+        try {
+            decodedPath = URLDecoder.decode(path, "UTF-8");
+        } catch (Exception e) {
+            Console.fatal("In createClient: " + e);
+            return false;
+        }
         String basePath = "";
         int endIndex = decodedPath.lastIndexOf("/");
         if (endIndex != -1)
@@ -54,60 +128,9 @@ public final class Main {
             _client.configure(configFileName);
         } catch (IllegalStateException | NullPointerException e) {
             Console.fatal("Client configuration failed.");
-            return;
+            return false;
         }
-
-        Main.registerShutdownHook();
-
-        Console.info("Chat client initialized.");
-        Console.info("Type 'log on' to begin, 'quit' or 'exit' to exit.");
-
-        while (!Thread.interrupted()) {
-            String command;
-            try {
-                command = Console.nextLine();
-            } catch (NoSuchElementException |
-                     IllegalStateException e) {
-                Console.fatal("Console caught input exception: " + e);
-                break;
-            }
-
-            // QUIT/EXIT command
-            if (command.matches("(?i)^(quit|exit)$")) {
-                // valid from any state.
-                break;
-            }
-
-            // LOG ON command
-            else if (command.matches("(?i)^log on")) {
-                handleLogOn();
-            }
-
-            else if (command.matches("(?i)^end chat")){
-            	handleEndChat(command);
-            }
-
-            // CHAT command
-            else if (command.matches("(?i)^(chat$|chat .*$)")) {
-                handleChat(command);
-            }
-
-            else if (command.matches("[\\s\\S]*")){
-            	handleChatSession(command);
-            }
-
-            // Any other input.
-            else {
-                Console.error("Invalid command: " + command);
-                continue;
-            }
-        }
-
-        // Kill all threads in the "client" group when Main exits.
-        // (Otherwise the process doesn't quit; you just lose the
-        // interactive client console).
-        _client.threadGroup().interrupt();
-        Console.close();
+        return true;
     }
 
     private static void registerShutdownHook() {
@@ -143,121 +166,93 @@ public final class Main {
         }
     }
 
-    private static void handleChat(String cmd) {
+    private static void handleConnect(String cmd) {
         // Check syntax
         if (!cmd.matches("(?i)^chat [1-9][0-9]*$")) {
             Console.error("Bad \"chat\" syntax."
-                          + " Usage: CHAT <client id>");
+                          + " Usage: chat <client id>");
             return;
         }
 
         // Check for valid state (requires an active chat session)
-        Client.State state;
         try {
-            state = _client.state();
-            System.out.println("==================");
-            _client.getState();
+            if (_client.state() != Client.State.ONLINE) {
+                Console.error("You are not online. Try \"log on\".");
+                return;
+            }
         } catch (InterruptedException e) {
-            return;
-        }
-        if (state != Client.State.REGISTERED) {
-            Console.error("You are not online. Try \"log on \".");
             return;
         }
 
         // Parse the command
         Scanner cmdScan = new Scanner(cmd).useDelimiter(" ");
-        // Skip over "chat" to get to the chat session id.
+        // Skip over "chat" to get to the target client id.
         cmdScan.next();
-        // Get the chat session id
+        // Get the target client id.
         final int clientBId = cmdScan.nextInt();
-        System.out.println("clientBId is " + clientBId);
+        if (_client.id() == clientBId) {
+            Console.warn("Talking to yourself?");
+            return;
+        }
 
-        // Generate and send the CHAT message in a separate thread so
-        // that the console can immediately accept more input from
-        // the user without waiting for the network IO to complete.
-        //
-        // The thread belongs to _client.threadGroup() and is named
-        // "CHAT worker". All threads need to belong to this ThreadGroup
-        // so that we can kill any outstanding threads when the console
-        // exits.
+        // Spin worker thread to send CONNECT message.
+        Thread worker = new Thread(
+            _client.threadGroup(),
+            new Runnable() {
+                public void run() {
+                    try {
+                        _client.setState(Client.State.WAIT_FOR_CHAT);
+                        _client.sessionSock().writeMessage(
+                            "CONNECT " + clientBId);
+                    } catch (Exception e) {
+                        Console.debug("While sending CONNECT: " + e);
+                    }
+                }
+            },
+            "CONNECT worker");
+        worker.start();
+    }
+
+    private static void handleEndChat() {
+        // Check for valid state (requires an active chat session)
+        try {
+            if (_client.state() != Client.State.ACTIVE_CHAT) {
+                Console.error("You are not in a chat session.");
+                return;
+            }
+        } catch (InterruptedException e) {
+            return;
+        }
+
+        // Spin worker thread to send END_REQUEST message.
         Thread worker = new Thread(
             _client.threadGroup(),
             new Runnable() {
                 public void run() {
                     try {
                         _client.sessionSock().writeMessage(
-                            "CONNECT " + clientBId);
-                        System.out.println("The CONNECT message has sent");
-
-                     // read Start message
-
-                        byte[] revStart = _client.sessionSock().readMessage();
-//                        System.out.println(revStart);
-                        String startMsg = new String(revStart);
-                        String[] msg = startMsg.split("\\s+");
-                        sessionID = Integer.parseInt(msg[1]);
-                        System.out.println("The session Id is "+ sessionID);
-                        if(msg[0].equals(new String("START"))){
-                        	System.out.println("The start msg is " + startMsg);
-                            System.out.println("------------------------");
-                            System.out.println("Chat Started");
-                        }else if(msg[0].equals(new String("UNREACHABLE"))){
-                        	System.out.println("Correspondent unreachable");
-                        }
-
+                            "END_REQUEST " + _client.chatSessionId());
                     } catch (Exception e) {
-                        Console.debug("While sending CHAT: " + e);
+                        Console.debug("While sending END_REQUEST: " + e);
                     }
                 }
             },
-            "CHAT worker");
+            "END_REQUEST worker");
         worker.start();
     }
 
-
-    private static void handleChatSession(final String cmd){
-
-    	 // Check for valid state (requires an active chat session)
-        Client.State state;
-        try {
-            state = _client.state();
-            System.out.println("==================");
-            _client.getState();
-        } catch (InterruptedException e) {
-            return;
-        }
-        if (state != Client.State.REGISTERED) {
-            Console.error("You are not online. Try \"log on \".");
-            return;
-        }
-
-        // Parse the command
-//        Scanner cmdScan = new Scanner(cmd).useDelimiter(" ");
-        // Skip over "chat" to get to the chat session id.
-//        cmdScan.next();
-        // Get the chat session id
-//        final int clientBId = cmdScan.nextInt();
-//        System.out.println("clientBId is " + clientBId);
-
-        // Generate and send the CHAT message in a separate thread so
-        // that the console can immediately accept more input from
-        // the user without waiting for the network IO to complete.
-        //
-        // The thread belongs to _client.threadGroup() and is named
-        // "CHAT worker". All threads need to belong to this ThreadGroup
-        // so that we can kill any outstanding threads when the console
-        // exits.
+    private static void handleChat(String message) {
+        // Spin worker thread to send CHAT message.
         Thread worker = new Thread(
             _client.threadGroup(),
             new Runnable() {
                 public void run() {
                     try {
-                    	String chatCotent = "CHAT " + sessionID + " " + cmd;
-                        _client.sessionSock().writeMessage(chatCotent);
-                        System.out.println("Chat msg is "+ chatCotent);
-                        System.out.println("The Chat content is "+ cmd);
-
+                        Console.info("[-> to client " + _client.chatPartnerId() + "] "
+                                     + message);
+                        _client.sessionSock().writeMessage(
+                            "CHAT " + _client.chatSessionId()
+                            + " " + message);
                     } catch (Exception e) {
                         Console.debug("While sending CHAT: " + e);
                     }
@@ -267,62 +262,36 @@ public final class Main {
         worker.start();
     }
 
+    private static void handleHistory(String command) {
+        // Check syntax
+        if (!command.matches("(?i)^history [1-9][0-9]*$")) {
+            Console.error("Bad \"history\" syntax."
+                          + " Usage: history <client id>");
+            return;
+        }
 
-    private static void handleEndChat(String cmd){
-//    	Client.State state;
-//        try {
-//            state = _client.state();
-//            System.out.println("==================");
-//            _client.getState();
-//        } catch (InterruptedException e) {
-//            return;
-//        }
-//        if (state != Client.State.REGISTERED) {
-//            Console.error("You are not online. Try \"log on \".");
-//            return;
-//        }
-    	System.out.println("Client want to end chat session");
         // Parse the command
-//        Scanner cmdScan = new Scanner(cmd).useDelimiter(" ");
-        // Skip over "chat" to get to the chat session id.
-//        cmdScan.next();
-        // Get the chat session id
-//        final int clientBId = cmdScan.nextInt();
-//        System.out.println("clientBId is " + clientBId);
+        Scanner scan = new Scanner(command);
+        // Skip over "history" to get to the target client id.
+        scan.next();
+        // Get the target client id.
+        final int partnerId = scan.nextInt();
 
-        // Generate and send the CHAT message in a separate thread so
-        // that the console can immediately accept more input from
-        // the user without waiting for the network IO to complete.
-        //
-        // The thread belongs to _client.threadGroup() and is named
-        // "CHAT worker". All threads need to belong to this ThreadGroup
-        // so that we can kill any outstanding threads when the console
-        // exits.
+        // Spin worker thread to send HISTORY message.
         Thread worker = new Thread(
             _client.threadGroup(),
             new Runnable() {
                 public void run() {
                     try {
-                    	String chatCotent = "END_REQUEST " + sessionID;
-                        _client.sessionSock().writeMessage(chatCotent);
-                        System.out.println("END_REQUEST has sent to server");
-
-                        byte[] endNotif = _client.sessionSock().readMessage();
-                        String notif = new String(endNotif);
-                        System.out.println("the end notification is "+ notif);
-                        System.out.println("Chat ended");
+                        _client.sessionSock().writeMessage(
+                            "HISTORY_REQ " + partnerId);
                     } catch (Exception e) {
-                        Console.debug("While sending CHAT: " + e);
+                        Console.debug("While sending HISTORY_REQ: " + e);
                     }
                 }
             },
-            "CHAT worker");
+            "HISTORY_REQ worker");
         worker.start();
-    }
-
-    public String getCommand() throws Exception{
-        String command = input.nextLine();
-    	return command;
     }
 
 }

@@ -253,8 +253,7 @@ public final class HandshakeThread extends Thread {
         throws InterruptedException, IOException {
 
         // Are we in the right state for this?
-        if (_client != null
-            && _client.state() != Client.State.OFFLINE) {
+        if (_client != null) {
             Console.debug(tag("Received HELLO in invalid state."));
             return false;
         }
@@ -274,6 +273,12 @@ public final class HandshakeThread extends Thread {
         Client client = _server.findClient(id);
         if (_server.findClient(id) == null) {
             Console.warn(tag("Received HELLO for unknown client: " + id));
+            return false;
+        }
+
+        if (client.state() != Client.State.OFFLINE) {
+            Console.debug(tag("Received HELLO in invalid state: "
+                              + client.state()));
             return false;
         }
 

@@ -8,9 +8,15 @@ import java.io.InputStream;
 import java.net.SocketTimeoutException;
 import java.util.Map;
 
+import java.util.Scanner;
+import java.nio.charset.StandardCharsets;
+
+import java.util.LinkedList;
+
 public final class SessionThread extends Thread {
     SessionSocket _socket;
     Client _client;
+    Server _server;
     InetAddress _clientAddr;
     int _clientPort;
 
@@ -21,6 +27,7 @@ public final class SessionThread extends Thread {
     public SessionThread(Client client, InetAddress addr, int port) {
         super(Server.instance().threadGroup(), "client session " + client.id());
         _client = client;
+        _server = Server.instance();
         _clientAddr = addr;
         _clientPort = port;
     }
@@ -29,99 +36,69 @@ public final class SessionThread extends Thread {
     // Thread Runtime Management
     // =========================================================================
 
+    @Override
+    public void interrupt() {
+        Console.debug("Interrupted.");
+        _socket.close();
+        super.interrupt();
+    }
+
+    @Override
     public void run() {
         Console.debug(tag("Session thread started."));
-        int sessionID = _client.getSessionID(_client.id());
-        _client.sessionIDisTrue(sessionID);
-        System.out.println("========The sessionID state is " + _client.getSessionIDstate(sessionID));
 
-        System.out.println("========== The session id is " + sessionID);
+        // Try to connect to the client, or die.
         if (!this.connectToClient()) {
             this.exitCleanup();
             return;
         }
 
-        //wrote by Jason//
+        if (!_socket.writeMessage("REGISTERED")) {
+            this.exitCleanup();
+            return;
+        }
         try {
-            this.sendRegistered();
-            _client.setState(Client.State.REGISTERED_SENT);
-
-            byte[] mesRev = _socket.readMessage();
-            String message = new String (mesRev);
-            System.out.println("The received message is "+ message);
-            String[] msg = message.split("\\s+");
-            if(msg[0].equals(new String("CONNECT"))){
-            	System.out.println("Connect Message received");
-            }
-
-            // send start msg to client
-            String chatID = msg[1];
-            String startMsg1 = "START " + sessionID + " " + chatID;
-            System.out.println("The start1 is "+ startMsg1);
-            String startMsg2 = "START " + sessionID + " " + Integer.toString(_client.id());
-            System.out.println("The start2 is "+ startMsg2);
-
-            // because we need two laptop to check the correctness of UNREACHABLE msg,
-            // I just use the following statement to send start msg.
-
-//            _socket.writeMessage(startMsg1);
-//            _client.setState(Client.State.ACTIVE_CHAT);
-            // if the chat client state is REGISTERED_SENT, that means the client is available
-            // other state means that the client is not available. then send unreachable message
-
-
-            int chatIDint = Integer.parseInt(chatID);
-            if(Server.getClient(chatIDint).getState().equals(new String("REGISTERED_SENT"))){
-            	_socket.writeMessage(startMsg1);
-//            	System.out.println("client B addr: "+ _socket.getSocket(chatID));
-
-            	System.out.println("================id: "+ _socket.getSocket("2")._socket.getRemoteSocketAddress().toString());
-
-            	for (Map.Entry<Integer, SessionSocket> tmp: _socket.idMapSockt.entrySet()) {
-            		System.out.println(tmp.getKey());
-            		System.out.println(tmp.getValue()._socket.getRemoteSocketAddress().toString());
-            	}
-
-
-            	_socket.getSocket(chatID).writeMessage(startMsg2);
-            	_client.setState(Client.State.ACTIVE_CHAT);
-            	Server.getClient(Integer.parseInt(chatID)).setState(Client.State.ACTIVE_CHAT);
-            }else{
-            	String unreachMsg = "UNREACHABLE " + chatID;
-            	_socket.writeMessage(unreachMsg);
-            }
-            System.out.println("++++++");
-//            Thread chat1 = new Thread(new ChatThread(_socket, _client, chatID, sessionID));
-//            chat1.start();
-//            Thread chat2 = new Thread(new ChatThread(_socket.getSocket(chatID), _client, Integer.toString(_client.id()), sessionID));
-//            chat2.start();
-
-//            while(_client.getState().equals(new String("ACTIVE_CHAT"))){
-//            	 byte[] chatCotent = _socket.readMessage();
-//                 String content = new String(chatCotent);
-//                 if(content.substring(0, 11).equals(new String("END_REQUEST"))) {
-//                	 System.out.println("+++++ revceive");
-//                	 break;
-//                 }
-//                 System.out.println("The chat content received from client A is "+ content);
-//                 // send content to client B
-//                 _socket.getSocket(chatID).writeMessage(content);
-//
-//            }
-//            System.out.println("The client enter End Chat");
-//            String endChat = "END_NOTIF " + sessionID;
-//            System.out.println("The end notification msg is "+ endChat);
-//            _socket.writeMessage(endChat);
-//            System.out.println("The end chat msg has sent to client");
-
-        } catch (Exception e) {
-            // TODO Auto-generated catch blosck
-            e.printStackTrace();
+            _client.setState(Client.State.ONLINE);
+        } catch (InterruptedException e) {
+            this.exitCleanup();
+            return;
         }
 
-        // TODO: everything
-        // See HandshakeThread in client and server for inspiration on
-        // how to structure this as a state machine.
+        while(!Thread.interrupted() && !_socket.isClosed()) {
+            try {
+                String message = _socket.readMessage();
+                if (message == null) {
+                    Console.error(tag("Lost communication with client."));
+                    break;
+                }
+
+                if (message.matches("^CONNECT [1-9][0-9]*")) {
+                    if (!this.handleConnect(message)) break;
+                }
+
+                else if (message.matches("^END_REQUEST [0-9]+")) {
+                    if (!this.handleEndRequest(message)) break;
+                }
+
+                else if (message.matches("^CHAT [0-9]+ \\S.*$")) {
+                    if (!this.handleChat(message)) break;
+                }
+
+                else if (message.matches("^HISTORY_REQ [0-9][1-9]*$")) {
+                    if (!this.handleHistoryReq(message)) break;
+                }
+
+                else {
+                    Console.debug(tag("Received Unknown message from client: "
+                                      + message));
+                    break;
+                }
+
+            } catch (InterruptedException e) {
+                this.exitCleanup();
+                break;
+            }
+        }
 
         this.exitCleanup();
     }
@@ -130,6 +107,16 @@ public final class SessionThread extends Thread {
     private void exitCleanup() {
         _client.setSocket(null);
         try {
+            // Terminate any chat sessions associated with this client.
+            if (_client.state() == Client.State.ACTIVE_CHAT) {
+                ChatSession chatSess = _client.chatSession();
+                Client partner = chatSess.partner(_client);
+                SessionSocket partnerSock = partner.socket();
+                partnerSock.writeMessage("END_NOTIF " + chatSess.id());
+                partner.setState(Client.State.ONLINE);
+                partner.setChatSession(null);
+                _server.unmapChatSession(chatSess.id());
+            }
             _client.setState(Client.State.OFFLINE);
         } catch (InterruptedException e) {
             // Nothing to do; we were just about to exit anyway.
@@ -163,11 +150,6 @@ public final class SessionThread extends Thread {
                               + _clientAddr.getHostAddress()
                               + ":" + _clientPort + "..."));
             _socket = new SessionSocket(_client, _clientAddr, _clientPort);
-            System.out.println("id "+ _client.id() + "addr "+ _clientAddr.toString() + "port "+ _clientPort);
-            System.out.println("================Remoteaddr: " + _socket._socket.getRemoteSocketAddress().toString());
-            _socket.setSocket(_client.id(), _socket);
-            System.out.println("================id: "+ _socket.getSocket(Integer.toString(_client.id()))._socket.getRemoteSocketAddress().toString());
-
             Console.debug(tag("Established TCP session to client."));
 
         } catch (SocketTimeoutException e) {
@@ -176,6 +158,7 @@ public final class SessionThread extends Thread {
             try {
                 _client.setState(Client.State.OFFLINE);
             } catch (InterruptedException ie) {
+                return false;
             }
             return false;
         } catch (Exception e) {
@@ -193,28 +176,120 @@ public final class SessionThread extends Thread {
         return true;
     }
 
-    /**
-     * when the client type "history clientB_id"
-     * check all the history from this client and return all the history for clientB
-     */
-    public String getHistory(InputStream _inStream){
-    	String history = "";
-    	String input = _inStream.toString();
-    	String[] in = input.split(" ");
+    private boolean handleConnect(String message) throws InterruptedException {
+        Scanner scan = new Scanner(message);
+        // Skip over CONNECT
+        scan.next();
+        int clientBId = scan.nextInt();
+        // silently refuse to let a client CONNECT to itself.
+        if (_client.id() == clientBId) {
+            return true;
+        }
 
-    	if(in[1]!=null){
-    		int clientB = Integer.parseInt(in[1]);
-    		history = _client.getHistory(clientB);
-    	}
-    	return history;
+        Client clientB = _server.findClient(clientBId);
+        if (clientB == null) {
+            if (!_socket.writeMessage("UNREACHABLE " + clientBId)) {
+                return false;
+            }
+            return true;
+        }
+
+        if (clientB.state() == Client.State.ACTIVE_CHAT) {
+            if (!_socket.writeMessage("UNREACHABLE " + clientBId)) {
+                return false;
+            }
+            return true;
+        }
+        if (clientB.state() != Client.State.ONLINE) {
+            if (!_socket.writeMessage("UNREACHABLE " + clientBId)) {
+                return false;
+            }
+            return true;
+        }
+
+        ChatSession chatSess = new ChatSession(_server.nextChatId(),
+                                               _client, clientB);
+        _client.setChatSession(chatSess);
+        clientB.setChatSession(chatSess);
+        _server.mapChatSession(chatSess.id(), chatSess);
+
+        _client.setState(Client.State.ACTIVE_CHAT);
+        clientB.setState(Client.State.ACTIVE_CHAT);
+        SessionSocket socketB = clientB.socket();
+        if (!_socket.writeMessage(
+                "START " + chatSess.id() + " " + clientBId)) {
+            return false;
+        }
+        if (!socketB.writeMessage(
+                "START " + chatSess.id() + " " + _client.id())) {
+            return false;
+        }
+
+        return true;
     }
 
-    // wrote by Jason//
-    private void sendRegistered() throws Exception{
-        Console.debug(tag("Sending REGISTERED..."));
-        byte[] msg = _socket.writeMessage("REGISTERED");
+    public boolean handleEndRequest(String message) throws InterruptedException {
+        if (_client.state() != Client.State.ACTIVE_CHAT) {
+            Console.debug("Received END_REQUEST from client in invalid state: "
+                          + _client.state());
+            return false;
+        }
+        ChatSession chatSess = _client.chatSession();
+        Client partner = chatSess.partner(_client);
+        SessionSocket partnerSock = partner.socket();
+        _socket.writeMessage("END_NOTIF " + chatSess.id());
+        partnerSock.writeMessage("END_NOTIF " + chatSess.id());
         _client.setState(Client.State.ONLINE);
+        partner.setState(Client.State.ONLINE);
+        _client.setChatSession(null);
+        partner.setChatSession(null);
+        _server.unmapChatSession(chatSess.id());
+        return true;
     }
 
+    public boolean handleChat(String message) throws InterruptedException {
+        if (_client.state() != Client.State.ACTIVE_CHAT) {
+            Console.debug("Received CHAT from client in invalid state: "
+                          + _client.state());
+            return false;
+        }
+        Scanner scan = new Scanner(message);
+        // Skip over "CHAT "
+        scan.next();
+        int chatSessionId = scan.nextInt();
+        if (_client.chatSession().id() != chatSessionId) {
+            Console.debug("Received CHAT command for invalid chat session id: "
+                          + chatSessionId);
+            return false;
+        }
+
+        String clientMsg = scan.nextLine();
+        Client partner = _client.chatSession().partner(_client);
+        partner.addHistory(_client.id(), clientMsg);
+        SessionSocket partnerSock = partner.socket();
+        return partnerSock.writeMessage("CHAT " + chatSessionId + clientMsg);
+    }
+
+    public boolean handleHistoryReq(String message) throws InterruptedException {
+        if (!(_client.state() == Client.State.ONLINE
+              || _client.state() == Client.State.ACTIVE_CHAT)) {
+            Console.debug("Received CHAT from client in invalid state: "
+                          + _client.state());
+            return false;
+        }
+
+        Scanner scan = new Scanner(message);
+        // Skip over "HISTORY_REQ "
+        scan.next();
+        int partnerId = scan.nextInt();
+
+        LinkedList<String> history = _client.getHistory(partnerId);
+        if (history != null) {
+            for (String msg : history) {
+                _socket.writeMessage("HISTORY_RESP " + partnerId + msg);
+            }
+        }
+        return true;
+    }
 
 }

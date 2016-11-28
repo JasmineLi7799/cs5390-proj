@@ -63,7 +63,6 @@ public final class SessionSocket {
                         + _socket.getInetAddress().getHostAddress()
                         + ":" + _socket.getPort());
             this.closeBindSock();
-            _socket.setSoTimeout(_client.config.timeoutInterval());
             _inStream = _socket.getInputStream();
             _outStream = _socket.getOutputStream();
         } catch (SocketTimeoutException|SocketException e) {
@@ -110,6 +109,10 @@ public final class SessionSocket {
         }
     }
 
+    public boolean isClosed() {
+        return _socket.isClosed();
+    }
+
     public void finalize() {
         Console.debug("If you see this mesasge, someone somewhere forgot"
                       + " to close the SessionSocket.");
@@ -118,83 +121,122 @@ public final class SessionSocket {
         this.close();
     }
 
-    // wrote by Jason
-//    public byte[] readMessage() throws Exception {
-//        ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-//
-//        byte[] cipherBlock = new byte[Cryptor.CRYPT_LENGTH];
-//        if (_inStream.read(cipherBlock) != Cryptor.CRYPT_LENGTH) {
-//            Console.error("Short read from SessionSocket. IO Failure?");
-//            throw new IOException();
-//        }
-//        byte[] plainBlock = Cryptor.decrypt(_client.cryptKey(), cipherBlock);
-//        int msgLength = ByteBuffer.wrap(
-//            Arrays.copyOfRange(plainBlock, 0, 4)).getInt();
-//
-//        // Trim length field from plainBlock
-//        plainBlock = Arrays.copyOfRange(plainBlock, 4, plainBlock.length);
-//        int bytesRead = plainBlock.length;
-//
-//        buffer.write(plainBlock);
-//
-//        while (bytesRead < msgLength) {
-//            Console.debug("bytesRead = " + bytesRead);
-//            if (_inStream.read(cipherBlock) != Cryptor.CRYPT_LENGTH) {
-//                Console.error("Short read from SessionSocket. IO Failure?");
-//                throw new IOException();
-//            }
-//            plainBlock = Cryptor.decrypt(_client.cryptKey(), cipherBlock);
-//            buffer.write(plainBlock);
-//            bytesRead += plainBlock.length;
-//            Console.debug("bytesRead = " + bytesRead);
-//        }
-//
-//        return buffer.toByteArray();
-//    }
+    // public String readMessage() {
+    //     int blockLen = Cryptor.CRYPT_LENGTH;
+    //     try {
+    //         // Read the first block
+    //         byte[] blockBytes = new byte[blockLen];
+    //         if (_inStream.read(blockBytes) != blockLen) {
+    //             return null;
+    //         }
+    //         byte[] plainBytes;
+    //         try {
+    //             plainBytes = Cryptor.decrypt(_client.cryptKey(), blockBytes);
+    //         } catch (Exception e) {
+    //             Console.debug("header");
+    //             Console.error("In writeMessage() caught: " + e);
+    //             return null;
+    //         }
 
-    // wrote by Jason
-//    public byte[] writeMessage(String message) throws Exception {
-//        byte[] msgBytes = message.getBytes(StandardCharsets.UTF_8);
-//        byte[] lengthField = new byte[4];
-//        ByteBuffer lfb = ByteBuffer.wrap(lengthField);
-//        lfb.putInt(msgBytes.length);
-//
-//        // Concatenate length field + msg into plainMsg
-//        byte[] plainMsg = new byte[4 + msgBytes.length];
-//        System.arraycopy(lengthField, 0, plainMsg, 0, 4);
-//        System.arraycopy(msgBytes, 0, plainMsg, 4, msgBytes.length);
-//
-//        byte[] cryptMsg = Cryptor.encrypt(_client.cryptKey(), plainMsg);
-//        _outStream.write(cryptMsg);
-//        return cryptMsg;
-//    }
+    //         // Extract the message length
+    //         ByteBuffer msgLenBuff = ByteBuffer.wrap(
+    //             Arrays.copyOfRange(plainBytes, 0, 4));
+    //         int msgLen = msgLenBuff.getInt();
 
-    public byte[] readMessage() throws Exception{
-        Queue<byte[]> _msgBuffer = new LinkedList<byte[]>();
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        int msgLength = Cryptor.CRYPT_LENGTH;
-        byte[] _msg = new byte[msgLength];
-        int len = 0;
-        do {
-            len = _inStream.read(_msg);
-            byte[] tmpMsg = new byte[len];
-            for(int i = 0; i < len; i++){
-                tmpMsg[i] = _msg[i];
+    //         // Put the rest in the output buffer
+    //         ByteArrayOutputStream msgBuffer = new ByteArrayOutputStream();
+    //         msgBuffer.write(Arrays.copyOfRange(plainBytes, 4, plainBytes.length));
+
+    //         int bytesRead = plainBytes.length - 4;
+    //         while (bytesRead < msgLen) {
+    //             if (_inStream.read(blockBytes) != blockLen) {
+    //                 Console.error("Got truncated encryption block from socket.");
+    //                 return null;
+    //             }
+    //             try {
+    //                 plainBytes = Cryptor.decrypt(_client.cryptKey(), blockBytes);
+    //             } catch (Exception e) {
+    //                 Console.debug("body");
+    //                 Console.error("In writeMessage() caught: " + e);
+    //                 return null;
+    //             }
+    //             bytesRead += plainBytes.length;
+    //             msgBuffer.write(plainBytes);
+    //         }
+
+    //         return new String(msgBuffer.toByteArray(), StandardCharsets.UTF_8);
+    //     } catch (IOException e) {
+    //         Console.error("In readMessage caught: " + e);
+    //         return null;
+    //     }
+    // }
+
+    // public boolean writeMessage(String message) {
+    //     return writeMessage(message.getBytes(StandardCharsets.UTF_8));
+    // }
+
+    // public boolean writeMessage(byte[] msgBytes) {
+    //     byte plainMsg[] = new byte[msgBytes.length + 4];
+    //     ByteBuffer msgBuff = ByteBuffer.wrap(plainMsg);
+    //     msgBuff.putInt(msgBytes.length);
+    //     msgBuff.put(msgBytes);
+
+    //     byte[] cryptMsg;
+    //     try {
+    //         cryptMsg = Cryptor.encrypt(_client.cryptKey(), plainMsg);
+    //     } catch (Exception e) {
+    //         Console.error("In writeMessage() caught: " + e);
+    //         return false;
+    //     }
+    //     try {
+    //         _outStream.write(cryptMsg);
+    //         return true;
+    //     } catch (IOException e) {
+    //         Console.error("In writeMessage() caught: " + e);
+    //         return false;
+    //     }
+    // }
+
+    public String readMessage() {
+        try {
+            // Extract the message length
+            byte[] lenBytes = new byte[4];
+            if (_inStream.read(lenBytes) != 4) {
+                Console.error("Lost connection to server.");
+                return null;
             }
-            _msgBuffer.add(tmpMsg);
-            // System.out.println("len is "+len);
-        } while (len == 16);
+            ByteBuffer msgLenBuff = ByteBuffer.wrap(lenBytes);
+            int msgLen = msgLenBuff.getInt();
 
+            byte[] message = new byte[msgLen];
+            if (_inStream.read(message) != msgLen) {
+                Console.error("Lost connection to server.");
+                return null;
+            }
 
-        while (!_msgBuffer.isEmpty()) {
-            bos.write(_msgBuffer.poll());
+            return new String(message, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            Console.error("In readMessage caught: " + e);
+            return null;
         }
-        return bos.toByteArray();
     }
 
-    public byte[] writeMessage(String message) throws Exception{
-        byte[] msg = message.getBytes();
-        _outStream.write(message.getBytes());;
-        return msg;
+    public boolean writeMessage(String message) {
+        return writeMessage(message.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public boolean writeMessage(byte[] msgBytes) {
+        byte plainMsg[] = new byte[msgBytes.length + 4];
+        ByteBuffer msgBuff = ByteBuffer.wrap(plainMsg);
+        msgBuff.putInt(msgBytes.length);
+        msgBuff.put(msgBytes);
+
+        try {
+            _outStream.write(plainMsg);
+            return true;
+        } catch (IOException e) {
+            Console.error("In writeMessage() caught: " + e);
+            return false;
+        }
     }
 }
